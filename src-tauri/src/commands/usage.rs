@@ -219,6 +219,19 @@ pub fn set_launch_on_startup(
     Ok((&updated).into())
 }
 
+/// Toggle the compact "main stats only" Overview. Pure UI preference — no
+/// rescan needed, the frontend just renders less and fits the window.
+#[tauri::command]
+pub fn set_minimal_view(
+    app: AppHandle,
+    state: State<'_, Mutex<AppState>>,
+    enabled: bool,
+) -> Result<SettingsView, String> {
+    let updated = update_settings(&state, |s| s.minimal_view = enabled)?;
+    settings::save(&app, &updated).into_string()?;
+    Ok((&updated).into())
+}
+
 /// Update the auto-refresh interval (seconds), clamped to a sane range.
 #[tauri::command]
 pub fn set_refresh_secs(

@@ -18,7 +18,7 @@
         "width": 440,
         "height": 660,
         "minWidth": 440,
-        "minHeight": 480,
+        "minHeight": 180,
         "resizable": false,
         "decorations": false,
         "transparent": false,

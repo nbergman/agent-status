@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 
 import { Meter } from "./components/Meter";
 import { Settings } from "./components/Settings";
@@ -6,9 +7,15 @@ import { UpdateBanner } from "./components/UpdateBanner";
 import { VendorCard } from "./components/VendorCard";
 import { WeekChart } from "./components/WeekChart";
 import { useUsage } from "./hooks/useUsage";
+import { isTauriReady } from "./tauriReady";
 import type { Glm, PlanKey, VendorStatus } from "./types";
 
 type Tab = "overview" | "sessions" | "providers" | "settings";
+
+// Full window height from tauri.conf.json. Minimal view shrinks below this to
+// fit the headline stats; everything else uses the full height.
+const FULL_HEIGHT = 660;
+const WINDOW_WIDTH = 440;
 
 const PLANS: { key: PlanKey; label: string }[] = [
   { key: "pro", label: "Pro" },
@@ -27,6 +34,7 @@ export default function App() {
     setRefreshSecs,
     setLiveClaude,
     setLaunchOnStartup,
+    setMinimalView,
     refresh,
     isLoading,
     error,
@@ -35,6 +43,33 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("overview");
   const [provider, setProvider] = useState<"claude" | "glm">("claude");
   const plan: PlanKey = settings?.plan ?? "max5x";
+  // Minimal view only trims the Overview; other tabs always show full content.
+  const minimal = (settings?.minimalView ?? false) && tab === "overview";
+
+  // Fit the window to its content in minimal view (no scrollbar, no dead
+  // space); restore the full height otherwise. The macOS window is anchored
+  // top-under-tray, so resizing grows/shrinks downward.
+  useEffect(() => {
+    if (!isTauriReady()) return;
+    const win = getCurrentWindow();
+    const root = document.querySelector<HTMLElement>(".widget");
+    const body = document.querySelector<HTMLElement>(".body");
+    const panel = body?.firstElementChild as HTMLElement | null;
+    if (!minimal || !root || !body || !panel) {
+      win.setSize(new LogicalSize(WINDOW_WIDTH, FULL_HEIGHT)).catch(() => {});
+      return;
+    }
+    // Fit to the panel's own height. NB: not body.scrollHeight — that clamps to
+    // the viewport when content underflows, so it can never shrink the window
+    // (and the buffer would make it creep upward each refresh). The panel's
+    // height is set by its content at the fixed window width, so it's stable.
+    const cs = getComputedStyle(body);
+    const bodyPad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const nonBodyChrome = root.offsetHeight - body.offsetHeight;
+    const natural = nonBodyChrome + panel.offsetHeight + bodyPad;
+    const height = Math.min(FULL_HEIGHT, Math.max(200, Math.ceil(natural)));
+    win.setSize(new LogicalSize(WINDOW_WIDTH, height)).catch(() => {});
+  }, [minimal, provider, tab, snapshot]);
 
   if (!snapshot) {
     return (
@@ -123,7 +158,7 @@ export default function App() {
         ))}
       </nav>
 
-      <div className="body">
+      <div className={`body${minimal ? " minimal" : ""}`}>
         {tab === "overview" && (
           <section className="panel">
             {providerTabs.length > 1 && (
@@ -161,49 +196,57 @@ export default function App() {
                       ))}
                     </div>
 
-                    <div className="sec-head">
-                      <h2>Usage</h2>
-                      <span className="meta">
-                        {limits.live ? "live · Claude" : `${limits.planLabel} plan · est.`}
-                      </span>
-                    </div>
-                    <div className="meters">
-                      {limits.buckets.map((b) => (
-                        <Meter bucket={b} key={b.name} />
-                      ))}
-                    </div>
+                    {!minimal && (
+                      <>
+                        <div className="sec-head">
+                          <h2>Usage</h2>
+                          <span className="meta">
+                            {limits.live ? "live · Claude" : `${limits.planLabel} plan · est.`}
+                          </span>
+                        </div>
+                        <div className="meters">
+                          {limits.buckets.map((b) => (
+                            <Meter bucket={b} key={b.name} />
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
 
-                <div className="sec-head">
-                  <h2>Last 7 days</h2>
-                  <span className="meta">tokens / day</span>
-                </div>
-                <WeekChart week={week} />
-
-                <div className="sec-head">
-                  <h2>By model</h2>
-                  <span className="meta">all-time tokens</span>
-                </div>
-                <div className="models">
-                  {models.map((m) => (
-                    <div className="model-row" key={m.key}>
-                      <span className="name">{m.name}</span>
-                      <div className="mtrack">
-                        <div className={`mfill ${m.key}`} style={{ width: `${m.pct}%` }} />
-                      </div>
-                      <span className="mval">
-                        <b>{m.tokens}</b> · {m.cost}
-                      </span>
+                {!minimal && (
+                  <>
+                    <div className="sec-head">
+                      <h2>Last 7 days</h2>
+                      <span className="meta">tokens / day</span>
                     </div>
-                  ))}
-                </div>
+                    <WeekChart week={week} />
 
-                {!limits.pending && (
-                  <div className="note">
-                    <InfoIcon />
-                    <p>{limits.estimateNote}</p>
-                  </div>
+                    <div className="sec-head">
+                      <h2>By model</h2>
+                      <span className="meta">all-time tokens</span>
+                    </div>
+                    <div className="models">
+                      {models.map((m) => (
+                        <div className="model-row" key={m.key}>
+                          <span className="name">{m.name}</span>
+                          <div className="mtrack">
+                            <div className={`mfill ${m.key}`} style={{ width: `${m.pct}%` }} />
+                          </div>
+                          <span className="mval">
+                            <b>{m.tokens}</b> · {m.cost}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {!limits.pending && (
+                      <div className="note">
+                        <InfoIcon />
+                        <p>{limits.estimateNote}</p>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -212,6 +255,7 @@ export default function App() {
               <GlmOverview
                 vendor={snapshot.vendor?.glm}
                 glm={glm}
+                minimal={minimal}
                 onConnect={() => setTab("settings")}
               />
             )}
@@ -322,20 +366,29 @@ export default function App() {
             setRefreshSecs={setRefreshSecs}
             setLiveClaude={setLiveClaude}
             setLaunchOnStartup={setLaunchOnStartup}
+            setMinimalView={async (enabled) => {
+              // Enabling minimal view jumps to Overview so the window shrinks
+              // to the compact stats immediately, rather than waiting for the
+              // user to leave Settings.
+              if (enabled) setTab("overview");
+              await setMinimalView(enabled);
+            }}
             keyError={keyError}
           />
         )}
       </div>
 
-      <footer className="foot">
-        <span className="live">
-          <span className="pulse" />
-          Live · local CLI data
-        </span>
-        <span>
-          {kpi.totalTokens} all-time · {kpi.totalCost}
-        </span>
-      </footer>
+      {!minimal && (
+        <footer className="foot">
+          <span className="live">
+            <span className="pulse" />
+            Live · local CLI data
+          </span>
+          <span>
+            {kpi.totalTokens} all-time · {kpi.totalCost}
+          </span>
+        </footer>
+      )}
     </main>
   );
 }
@@ -343,10 +396,12 @@ export default function App() {
 function GlmOverview({
   vendor,
   glm,
+  minimal,
   onConnect,
 }: {
   vendor: VendorStatus | undefined;
   glm: Glm;
+  minimal: boolean;
   onConnect: () => void;
 }) {
   const live = Boolean(vendor?.configured && vendor.ok);
@@ -367,7 +422,7 @@ function GlmOverview({
               <div className="k-sub">live</div>
             </div>
           </div>
-          {vendor.detail.length > 0 && (
+          {!minimal && vendor.detail.length > 0 && (
             <div className="budget" style={{ marginTop: 9 }}>
               {vendor.detail.map((d) => (
                 <div className="budget-foot" key={d.label} style={{ marginTop: 0 }}>
@@ -395,24 +450,28 @@ function GlmOverview({
         </div>
       )}
 
-      <div className="sec-head">
-        <h2>Local activity</h2>
-        <span className="meta">MCP logs</span>
-      </div>
-      <div className="budget">
-        <div className="budget-foot" style={{ marginTop: 0 }}>
-          <span className="used">{glm.sessions} server sessions</span>
-          <span className="rem">{glm.activeDays} active days</span>
-        </div>
-        <div className="budget-foot">
-          <span className="used">last seen</span>
-          <span className="rem">{glm.last}</span>
-        </div>
-      </div>
-      <div className="note">
-        <InfoIcon />
-        <p>{glm.note}</p>
-      </div>
+      {!minimal && (
+        <>
+          <div className="sec-head">
+            <h2>Local activity</h2>
+            <span className="meta">MCP logs</span>
+          </div>
+          <div className="budget">
+            <div className="budget-foot" style={{ marginTop: 0 }}>
+              <span className="used">{glm.sessions} server sessions</span>
+              <span className="rem">{glm.activeDays} active days</span>
+            </div>
+            <div className="budget-foot">
+              <span className="used">last seen</span>
+              <span className="rem">{glm.last}</span>
+            </div>
+          </div>
+          <div className="note">
+            <InfoIcon />
+            <p>{glm.note}</p>
+          </div>
+        </>
+      )}
     </>
   );
 }

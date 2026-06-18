@@ -65,6 +65,9 @@ body {
 .tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
 
 .body { padding: 13px; overflow-x: hidden; overflow-y: auto; flex: 1; }
+/* Minimal view fits the window to its content, so no scrolling is needed —
+   suppress the scrollbar entirely (it would otherwise flash on sub-pixel rounding). */
+.body.minimal { overflow-y: hidden; }
 
 /* provider segmented toggle */
 .seg { display: flex; gap: 3px; padding: 3px; background: var(--bar-bg); border: 1px solid var(--border); border-radius: 9px; margin-bottom: 13px; }

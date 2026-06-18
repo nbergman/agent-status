@@ -34,6 +34,9 @@ pub struct Settings {
     /// Register the app to launch automatically at login. Menubar widgets are
     /// expected to persist, so this defaults on.
     pub launch_on_startup: bool,
+    /// Compact "main stats only" Overview that fits the window without
+    /// scrolling. Defaults off — the full view is the standard layout.
+    pub minimal_view: bool,
 }
 
 impl Default for Settings {
@@ -46,6 +49,7 @@ impl Default for Settings {
             anthropic_key: None,
             live_claude: true,
             launch_on_startup: true,
+            minimal_view: false,
         }
     }
 }
@@ -61,6 +65,7 @@ pub struct SettingsView {
     pub anthropic_key_set: bool,
     pub live_claude: bool,
     pub launch_on_startup: bool,
+    pub minimal_view: bool,
 }
 
 impl From<&Settings> for SettingsView {
@@ -73,6 +78,7 @@ impl From<&Settings> for SettingsView {
             anthropic_key_set: s.anthropic_key.is_some(),
             live_claude: s.live_claude,
             launch_on_startup: s.launch_on_startup,
+            minimal_view: s.minimal_view,
         }
     }
 }

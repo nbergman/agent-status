@@ -12,6 +12,7 @@ interface Props {
   setRefreshSecs: (secs: number) => Promise<void>;
   setLiveClaude: (enabled: boolean) => Promise<void>;
   setLaunchOnStartup: (enabled: boolean) => Promise<void>;
+  setMinimalView: (enabled: boolean) => Promise<void>;
   keyError: string | null;
 }
 
@@ -32,10 +33,32 @@ export function Settings({
   setRefreshSecs,
   setLiveClaude,
   setLaunchOnStartup,
+  setMinimalView,
   keyError,
 }: Props) {
   return (
     <section className="panel">
+      <div className="sec-head">
+        <h2>Display</h2>
+        <span className="meta">{settings.minimalView ? "minimal" : "full"}</span>
+      </div>
+      <div className="key-row">
+        <label className="toggle-row">
+          <span>
+            <span className="key-label">Minimal view</span>
+            <span className="connect-sub" style={{ margin: "4px 0 0" }}>
+              Show only the headline stats on Overview and shrink the window to fit — no scrolling. Off shows the full breakdown.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            className="toggle"
+            checked={settings.minimalView}
+            onChange={(e) => setMinimalView(e.target.checked)}
+          />
+        </label>
+      </div>
+
       <div className="sec-head">
         <h2>Claude usage</h2>
         <span className="meta">{settings.liveClaude ? "live" : "estimate"}</span>

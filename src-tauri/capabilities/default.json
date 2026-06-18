@@ -9,6 +9,7 @@
     "core:window:allow-show",
     "core:window:allow-hide",
     "core:window:allow-set-focus",
+    "core:window:allow-set-size",
     "positioner:default",
     "autostart:allow-enable",
     "autostart:allow-disable",

@@ -129,4 +129,5 @@ export interface SettingsView {
   anthropicKeySet: boolean;
   liveClaude: boolean;
   launchOnStartup: boolean;
+  minimalView: boolean;
 }
