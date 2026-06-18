@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Agent Usage Monitor — real Claude Code & GLM usage in your menu bar</title>
+<meta name="description" content="A lightweight macOS menubar widget that shows your real Claude Code session/weekly limits and GLM Coding Plan quota — the same numbers /usage reports — plus token spend, cost and per-session history." />
+<meta property="og:title" content="Agent Usage Monitor" />
+<meta property="og:description" content="Real Claude Code & GLM CLI usage, live in your macOS menu bar." />
+<meta property="og:image" content="screenshots/overview.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:        oklch(13% 0.012 250);
+    --bg-2:      oklch(16% 0.013 252);
+    --panel:     oklch(20% 0.014 255);
+    --surface:   oklch(24% 0.014 255);
+    --surface-2: oklch(27% 0.016 255);
+    --fg:        oklch(96% 0.006 250);
+    --muted:     oklch(72% 0.014 250);
+    --faint:     oklch(56% 0.014 250);
+    --border:    oklch(30% 0.014 255);
+    --border-2:  oklch(38% 0.016 255);
+    --accent:    oklch(74% 0.15 200);
+    --accent-deep: oklch(58% 0.13 215);
+    --ok:        oklch(74% 0.16 150);
+    --violet:    oklch(72% 0.13 290);
+    --font:      -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    --mono:      "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font);
+    color: var(--fg);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    line-height: 1.5;
+  }
+  a { color: inherit; text-decoration: none; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- aurora background ---------- */
+  .aurora { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+  .aurora::before, .aurora::after {
+    content: ""; position: absolute; border-radius: 50%;
+    filter: blur(120px); opacity: .5;
+  }
+  .aurora::before { width: 780px; height: 780px; top: -300px; right: -180px;
+    background: radial-gradient(circle, oklch(60% 0.14 210 / .55), transparent 65%); animation: drift1 22s ease-in-out infinite; }
+  .aurora::after { width: 620px; height: 620px; top: 220px; left: -220px;
+    background: radial-gradient(circle, oklch(55% 0.12 285 / .4), transparent 65%); animation: drift2 28s ease-in-out infinite; }
+  @keyframes drift1 { 50% { transform: translate(-60px, 60px) scale(1.1); } }
+  @keyframes drift2 { 50% { transform: translate(70px, -40px) scale(1.08); } }
+  .grid-fade { position: fixed; inset: 0; z-index: -1;
+    background-image: linear-gradient(oklch(100% 0 0 / .025) 1px, transparent 1px), linear-gradient(90deg, oklch(100% 0 0 / .025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, #000 40%, transparent 80%); }
+
+  /* ---------- nav ---------- */
+  nav { position: sticky; top: 0; z-index: 50; backdrop-filter: blur(14px);
+    background: oklch(13% 0.012 250 / .72); border-bottom: 1px solid oklch(100% 0 0 / .06); }
+  nav .wrap { display: flex; align-items: center; gap: 14px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -0.01em; font-size: 15px; }
+  .brand .mark { width: 28px; height: 28px; }
+  nav .links { margin-left: auto; display: flex; align-items: center; gap: 26px; }
+  nav .links a { color: var(--muted); font-size: 14px; transition: .15s; }
+  nav .links a:hover { color: var(--fg); }
+  .ghbtn { display: inline-flex; align-items: center; gap: 8px; background: var(--fg); color: oklch(15% 0.02 250);
+    font-weight: 600; font-size: 13.5px; padding: 8px 15px; border-radius: 9px; transition: .15s; }
+  .ghbtn:hover { filter: brightness(.92); transform: translateY(-1px); }
+  @media (max-width: 720px) { nav .links a:not(.ghbtn) { display: none; } }
+
+  /* ---------- hero ---------- */
+  header.hero { padding: 92px 0 40px; position: relative; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px;
+    color: var(--accent); border: 1px solid oklch(74% 0.15 200 / .3); background: oklch(74% 0.15 200 / .08);
+    padding: 5px 12px; border-radius: 30px; letter-spacing: -0.01em; }
+  .eyebrow .d { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px oklch(74% 0.16 150 / .2); }
+  h1 { font-size: clamp(38px, 6.4vw, 68px); line-height: 1.02; letter-spacing: -0.035em; font-weight: 700; margin: 22px 0 0; max-width: 16ch; }
+  h1 .grad { background: linear-gradient(110deg, var(--accent), var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lede { font-size: clamp(16px, 2.1vw, 20px); color: var(--muted); max-width: 56ch; margin: 22px 0 0; text-wrap: pretty; }
+  .cta { display: flex; flex-wrap: wrap; gap: 13px; margin-top: 32px; align-items: center; }
+  .btn-primary { display: inline-flex; align-items: center; gap: 9px; font-weight: 600; font-size: 15px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-deep)); color: oklch(16% 0.03 230);
+    padding: 13px 22px; border-radius: 12px; box-shadow: 0 10px 30px -10px oklch(74% 0.15 200 / .6); transition: .18s; }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 38px -10px oklch(74% 0.15 200 / .7); }
+  .btn-ghost { display: inline-flex; align-items: center; gap: 9px; font-weight: 550; font-size: 15px; color: var(--fg);
+    padding: 13px 20px; border-radius: 12px; border: 1px solid var(--border-2); background: oklch(100% 0 0 / .02); transition: .18s; }
+  .btn-ghost:hover { border-color: var(--accent); background: oklch(74% 0.15 200 / .06); }
+  .req { font-family: var(--mono); font-size: 12px; color: var(--faint); margin-left: 4px; }
+
+  .hero-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center; }
+  @media (max-width: 920px) { .hero-grid { grid-template-columns: 1fr; } }
+
+  /* hero product shot — faux menubar + dropdown */
+  .stage { position: relative; }
+  .menubar { display: flex; align-items: center; justify-content: flex-end; gap: 20px; height: 30px; padding: 0 14px;
+    background: oklch(26% 0.012 250 / .6); border: 1px solid oklch(100% 0 0 / .08); border-radius: 9px 9px 0 0;
+    backdrop-filter: blur(10px); font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .menubar .active { display: flex; align-items: center; gap: 7px; color: var(--fg); background: oklch(45% 0.03 250 / .5); padding: 3px 9px; border-radius: 6px; }
+  .menubar .active .ico { width: 13px; height: 13px; }
+  .dropdown { width: 340px; margin: 0 8px 0 auto; transform-origin: top right; }
+  .dropdown img { width: 100%; display: block; border-radius: 14px; border: 1px solid var(--border);
+    box-shadow: 0 40px 80px -28px oklch(0% 0 0 / .8), 0 0 0 1px oklch(100% 0 0 / .04) inset; }
+  .stage-wrap { position: relative; display: flex; flex-direction: column; align-items: flex-end; animation: floaty 7s ease-in-out infinite; }
+  @keyframes floaty { 50% { transform: translateY(-12px); } }
+  .stage::after { content: ""; position: absolute; inset: 12% 8% -8% 8%; z-index: -1; border-radius: 30px;
+    background: radial-gradient(ellipse at 70% 30%, oklch(70% 0.14 205 / .35), transparent 70%); filter: blur(40px); }
+
+  /* ---------- marquee trust strip ---------- */
+  .strip { border-top: 1px solid oklch(100% 0 0 / .06); border-bottom: 1px solid oklch(100% 0 0 / .06); margin-top: 56px; padding: 20px 0; }
+  .strip .wrap { display: flex; flex-wrap: wrap; gap: 14px 30px; justify-content: center; }
+  .chip { display: inline-flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  .chip svg { width: 15px; height: 15px; color: var(--accent); }
+
+  /* ---------- sections ---------- */
+  section { padding: 84px 0; }
+  .kicker { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: .02em; }
+  .h2 { font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.03em; font-weight: 700; margin: 12px 0 0; max-width: 22ch; }
+  .sub { color: var(--muted); font-size: 17px; margin: 16px 0 0; max-width: 60ch; text-wrap: pretty; }
+
+  /* feature grid */
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 48px; }
+  @media (max-width: 900px) { .features { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px) { .features { grid-template-columns: 1fr; } }
+  .card { background: linear-gradient(180deg, var(--panel), var(--bg-2)); border: 1px solid var(--border); border-radius: 16px; padding: 22px; transition: .2s; }
+  .card:hover { border-color: var(--border-2); transform: translateY(-3px); box-shadow: 0 20px 40px -24px oklch(0% 0 0 / .7); }
+  .card .ic { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; margin-bottom: 16px;
+    background: oklch(74% 0.15 200 / .12); border: 1px solid oklch(74% 0.15 200 / .25); color: var(--accent); }
+  .card.v .ic { background: oklch(72% 0.13 290 / .12); border-color: oklch(72% 0.13 290 / .25); color: var(--violet); }
+  .card.g .ic { background: oklch(74% 0.16 150 / .12); border-color: oklch(74% 0.16 150 / .25); color: var(--ok); }
+  .card .ic svg { width: 20px; height: 20px; }
+  .card h3 { font-size: 17px; letter-spacing: -0.01em; font-weight: 650; }
+  .card p { color: var(--muted); font-size: 14.5px; margin-top: 8px; }
+
+  /* showcase */
+  .shots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 26px; margin-top: 48px; align-items: start; }
+  @media (max-width: 760px) { .shots { grid-template-columns: 1fr; } }
+  .shot { background: linear-gradient(180deg, var(--panel), var(--bg-2)); border: 1px solid var(--border); border-radius: 18px; padding: 18px; }
+  .shot img { width: 100%; display: block; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 24px 50px -30px oklch(0% 0 0 / .8); }
+  .shot .cap { display: flex; align-items: baseline; gap: 10px; margin-top: 16px; }
+  .shot .cap b { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+  .shot .cap span { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+  .shot p { color: var(--muted); font-size: 13.5px; margin-top: 6px; }
+
+  /* how it works */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 48px; counter-reset: s; }
+  @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+  .step { border: 1px solid var(--border); border-radius: 16px; padding: 24px; background: oklch(100% 0 0 / .015); position: relative; }
+  .step::before { counter-increment: s; content: counter(s); font-family: var(--mono); font-size: 13px; font-weight: 700;
+    color: var(--accent); border: 1px solid oklch(74% 0.15 200 / .35); width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; }
+  .step h3 { font-size: 16px; margin: 16px 0 0; letter-spacing: -0.01em; }
+  .step p { color: var(--muted); font-size: 14px; margin-top: 7px; }
+  .step code { font-family: var(--mono); font-size: 12.5px; color: var(--accent); background: oklch(74% 0.15 200 / .1); padding: 1px 6px; border-radius: 5px; }
+
+  /* honesty note */
+  .honest { margin-top: 36px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 700px) { .honest { grid-template-columns: 1fr; } }
+  .honest .h { border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; background: var(--panel); }
+  .honest .h .t { font-family: var(--mono); font-size: 12px; letter-spacing: .02em; display: flex; align-items: center; gap: 8px; }
+  .honest .real .t { color: var(--ok); } .honest .est .t { color: var(--violet); }
+  .honest .h ul { list-style: none; margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .honest .h li { font-size: 14px; color: var(--muted); padding-left: 18px; position: relative; }
+  .honest .h li::before { content: "—"; position: absolute; left: 0; color: var(--faint); }
+
+  /* install */
+  .install { background: linear-gradient(180deg, var(--panel), var(--bg-2)); border: 1px solid var(--border); border-radius: 22px; padding: clamp(28px, 5vw, 52px); text-align: center; }
+  .codeblock { font-family: var(--mono); font-size: 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin: 24px auto 0; max-width: 560px; text-align: left; color: var(--fg); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .codeblock .pfx { color: var(--accent); }
+  .copybtn { appearance: none; border: 1px solid var(--border-2); background: var(--surface-2); color: var(--muted); font-size: 12px; padding: 5px 10px; border-radius: 7px; cursor: pointer; transition: .15s; font-family: var(--font); }
+  .copybtn:hover { color: var(--fg); border-color: var(--accent); }
+
+  footer { border-top: 1px solid oklch(100% 0 0 / .06); padding: 40px 0; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+  footer .muted { color: var(--faint); font-size: 13px; font-family: var(--mono); }
+  footer .links { display: flex; gap: 22px; }
+  footer .links a { color: var(--muted); font-size: 14px; }
+  footer .links a:hover { color: var(--fg); }
+
+  /* reveal animation */
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1); }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .reveal { opacity: 1; transform: none; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="aurora"></div>
+<div class="grid-fade"></div>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="8" stroke="oklch(40% 0.04 220)" stroke-width="3"/>
+        <circle cx="12" cy="12" r="8" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-dasharray="34 50" pathLength="50" transform="rotate(-90 12 12)"/>
+        <circle cx="12" cy="12" r="2.2" fill="var(--accent)"/>
+      </svg>
+      Agent Usage Monitor
+    </a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#screens">Screens</a>
+      <a href="#how">How it works</a>
+      <a class="ghbtn" href="https://github.com/dennisrongo/agent-status" target="_blank" rel="noopener">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</nav>
+
+<a id="top"></a>
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <span class="eyebrow reveal"><span class="d"></span> Live from your Claude Code login</span>
+      <h1 class="reveal">Your agent usage, <span class="grad">honestly</span> in the menu bar.</h1>
+      <p class="lede reveal">A lightweight macOS widget that shows the <b>real</b> Claude Code session &amp; weekly limits your <code style="font-family:var(--mono);font-size:.9em">/usage</code> reports — plus GLM Coding Plan quota, token spend, cost and per-session history. Reads your local logs; no dashboards, no guessing.</p>
+      <div class="cta reveal">
+        <a class="btn-primary" href="https://github.com/dennisrongo/agent-status/releases/latest" target="_blank" rel="noopener">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a1 1 0 0 1 1 1v9.59l3.3-3.3a1 1 0 1 1 1.4 1.42l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.42l3.3 3.3V4a1 1 0 0 1 1-1z"/><path d="M5 19a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1z"/></svg>
+          Download for macOS
+        </a>
+        <a class="btn-ghost" href="https://github.com/dennisrongo/agent-status" target="_blank" rel="noopener">Star on GitHub</a>
+        <span class="req">macOS 11+ · Apple Silicon &amp; Intel</span>
+      </div>
+    </div>
+
+    <div class="stage reveal">
+      <div class="stage-wrap">
+        <div class="menubar">
+          <span>Wed 11:58</span>
+          <span>100%</span>
+          <span class="active">
+            <svg class="ico" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-opacity=".35" stroke-width="3"/><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="27 50" pathLength="50" transform="rotate(-90 12 12)"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/></svg>
+            55%
+          </span>
+        </div>
+        <div class="dropdown"><img src="screenshots/overview.png" alt="Agent Usage Monitor overview — live Claude session and weekly usage" loading="eager" /></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="strip reveal">
+    <div class="wrap">
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Matches <code style="font-family:var(--mono)">/usage</code> exactly</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Keys encrypted on-device</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/></svg> Refreshes only when open</span>
+      <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H4z"/><path d="M2 20h20"/></svg> Native menubar widget</span>
+    </div>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <p class="kicker reveal">Everything in one dropdown</p>
+    <h2 class="h2 reveal">Built for people who live in the terminal.</h2>
+    <p class="sub reveal">Claude Code and GLM both meter you differently and bury it behind a slash command or a browser tab. This pulls it all into one glance from the menu bar.</p>
+    <div class="features">
+      <div class="card reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <h3>Real Claude limits</h3>
+        <p>Session (5-hour) and weekly utilization pulled live from your Claude Code login — the exact percentages and reset times <code style="font-family:var(--mono);font-size:.85em">/usage</code> shows, not an estimate.</p>
+      </div>
+      <div class="card v reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 9l-6 6-3-3-4 4"/></svg></div>
+        <h3>GLM Coding Plan quota</h3>
+        <p>Real 5-hour &amp; weekly token quota from z.ai's monitor API, in the same view. Add your coding-plan key and it lights up next to Claude.</p>
+      </div>
+      <div class="card g reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 15l5-5 4 4 7-7"/></svg></div>
+        <h3>Spend &amp; history</h3>
+        <p>A 7-day token chart, per-model breakdown (Opus / Sonnet / Haiku), recent sessions and estimated cost — straight from your local <code style="font-family:var(--mono);font-size:.85em">~/.claude</code> logs.</p>
+      </div>
+      <div class="card reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+        <h3>Encrypted, on-device</h3>
+        <p>API keys are sealed with AES-256-GCM and bound to your machine — never written in plaintext, never sent anywhere but the vendor.</p>
+      </div>
+      <div class="card reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/></svg></div>
+        <h3>Quiet by default</h3>
+        <p>Refreshes the instant you open it and on a gentle interval while open — then goes silent when collapsed. No background polling, no battery drain.</p>
+      </div>
+      <div class="card reveal">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.5 8 11 4.6-2.5 8-6 8-11V5z"/></svg></div>
+        <h3>Tiny &amp; native</h3>
+        <p>A ~6&nbsp;MB Tauri app with a Rust core. Menubar template icon, launch-at-login, and signed auto-updates. No Electron, no bloat.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="screens" style="padding-top:24px">
+  <div class="wrap">
+    <p class="kicker reveal">Four tabs, zero clutter</p>
+    <h2 class="h2 reveal">See exactly where you stand.</h2>
+    <div class="shots">
+      <div class="shot reveal"><img src="screenshots/overview.png" alt="Overview tab" />
+        <div class="cap"><b>Overview</b><span>Claude · GLM toggle</span></div>
+        <p>Live session / weekly / per-model meters with reset countdowns and the 7-day spend chart.</p></div>
+      <div class="shot reveal"><img src="screenshots/providers.png" alt="Providers tab" />
+        <div class="cap"><b>Providers</b><span>connection status</span></div>
+        <p>Claude and z.ai side by side, with live vendor numbers when a key is set.</p></div>
+      <div class="shot reveal"><img src="screenshots/sessions.png" alt="Sessions tab" />
+        <div class="cap"><b>Sessions</b><span>recent activity</span></div>
+        <p>Every recent session with project, model, tokens and estimated cost.</p></div>
+      <div class="shot reveal"><img src="screenshots/settings.png" alt="Settings tab" />
+        <div class="cap"><b>Settings</b><span>keys &amp; refresh</span></div>
+        <p>Toggle live Claude usage, set the refresh interval, and store provider keys encrypted.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <p class="kicker reveal">How it works</p>
+    <h2 class="h2 reveal">Local-first, with real vendor numbers when you want them.</h2>
+    <div class="steps">
+      <div class="step reveal"><h3>Scans your logs</h3><p>A Rust core reads <code>~/.claude/projects/*.jsonl</code> and z.ai logs locally — exact token counts, per session and per model. Nothing leaves your machine.</p></div>
+      <div class="step reveal"><h3>Pulls live limits</h3><p>With your existing Claude Code login it reads the same usage endpoint the status bar uses, so the % and reset times match your plan precisely.</p></div>
+      <div class="step reveal"><h3>Sits in your menu bar</h3><p>Click the icon for a fresh read; it refreshes while open and rests when closed. Launches at login and updates itself.</p></div>
+    </div>
+
+    <div class="honest">
+      <div class="h real reveal">
+        <div class="t"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> REAL</div>
+        <ul>
+          <li>Claude session &amp; weekly % (from your login)</li>
+          <li>Exact token counts per session &amp; model</li>
+          <li>GLM 5-hour &amp; weekly quota (with a key)</li>
+          <li>Reset countdowns</li>
+        </ul>
+      </div>
+      <div class="h est reveal">
+        <div class="t"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg> ESTIMATED</div>
+        <ul>
+          <li>Dollar cost (from standard-tier pricing)</li>
+          <li>GLM token/cost without a key (local logs are lifecycle-only)</li>
+        </ul>
+      </div>
+    </div>
+    <p class="sub reveal" style="font-size:14px;color:var(--faint);margin-top:18px">Honest by design: the app never invents a number. Where a real value isn't available, it says so.</p>
+  </div>
+</section>
+
+<section id="install" style="padding-top:24px">
+  <div class="wrap">
+    <div class="install reveal">
+      <p class="kicker">Get it</p>
+      <h2 class="h2" style="margin:10px auto 0">Two minutes to a quieter menu bar.</h2>
+      <p class="sub" style="margin-left:auto;margin-right:auto">Grab the signed DMG from Releases, or build it yourself. It updates automatically after that.</p>
+      <div class="codeblock">
+        <span><span class="pfx">$</span> git clone https://github.com/dennisrongo/agent-status &amp;&amp; cd agent-status &amp;&amp; npm i &amp;&amp; npm run tauri build</span>
+        <button class="copybtn" id="copy">Copy</button>
+      </div>
+      <div class="cta" style="justify-content:center">
+        <a class="btn-primary" href="https://github.com/dennisrongo/agent-status/releases/latest" target="_blank" rel="noopener">Download the latest DMG</a>
+        <a class="btn-ghost" href="https://github.com/dennisrongo/agent-status" target="_blank" rel="noopener">Read the source</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="muted">Agent Usage Monitor · built with Tauri + Rust · MIT</span>
+    <div class="links">
+      <a href="https://github.com/dennisrongo/agent-status" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/dennisrongo/agent-status/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/dennisrongo/agent-status/issues" target="_blank" rel="noopener">Issues</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // scroll reveal with stagger
+  (function () {
+    var els = document.querySelectorAll('.reveal');
+    if (!('IntersectionObserver' in window)) { els.forEach(function (e) { e.classList.add('in'); }); return; }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) {
+          var sibs = Array.prototype.slice.call(en.target.parentElement.children).filter(function (c) { return c.classList.contains('reveal'); });
+          var i = sibs.indexOf(en.target);
+          en.target.style.transitionDelay = Math.min(i, 6) * 70 + 'ms';
+          en.target.classList.add('in');
+          io.unobserve(en.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    els.forEach(function (e) { io.observe(e); });
+  })();
+  // copy button
+  (function () {
+    var b = document.getElementById('copy');
+    if (!b) return;
+    b.addEventListener('click', function () {
+      var t = "git clone https://github.com/dennisrongo/agent-status && cd agent-status && npm i && npm run tauri build";
+      navigator.clipboard && navigator.clipboard.writeText(t);
+      b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1400);
+    });
+  })();
+</script>
+</body>
+</html>
