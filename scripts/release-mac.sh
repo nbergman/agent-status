@@ -60,6 +60,19 @@ echo
 # notarizes + staples automatically when notarization creds are present, and
 # produces the updater artifacts (.app.tar.gz + .sig) when an updater signing
 # key is set in the environment.
+#
+# The DMG bundler's final step runs a Finder AppleScript to style the disk-image
+# window. That call needs an Automation grant to control Finder and a responsive
+# Finder, and it hangs indefinitely on machines where a FinderSync extension
+# (e.g. Synology Drive) wedges Finder when the temp DMG volume mounts. We have no
+# custom DMG styling configured, so skip the cosmetics by default: Tauri passes
+# --skip-jenkins to bundle_dmg.sh when CI is set. Run with DMG_STYLED=true to opt
+# back into the Finder styling (only works at the machine with Automation granted
+# and the FinderSync extension quit/disabled).
+if [[ "${DMG_STYLED:-false}" != "true" ]]; then
+  export CI=true
+fi
+
 npx tauri build --target "$TARGET" --bundles app,dmg
 
 # Bundles live under target/<triple>/release when --target is passed.
