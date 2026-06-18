@@ -175,6 +175,25 @@
   .copybtn { appearance: none; border: 1px solid var(--border-2); background: var(--surface-2); color: var(--muted); font-size: 12px; padding: 5px 10px; border-radius: 7px; cursor: pointer; transition: .15s; font-family: var(--font); }
   .copybtn:hover { color: var(--fg); border-color: var(--accent); }
 
+  /* about / maker */
+  .maker { display: grid; grid-template-columns: auto 1fr; gap: 26px; align-items: center; margin-top: 40px;
+    background: linear-gradient(180deg, var(--panel), var(--bg-2)); border: 1px solid var(--border); border-radius: 20px; padding: clamp(24px, 4vw, 38px); }
+  @media (max-width: 640px) { .maker { grid-template-columns: 1fr; text-align: center; justify-items: center; } }
+  .avatar { width: 96px; height: 96px; border-radius: 24px; display: grid; place-items: center; position: relative; flex: none;
+    background: radial-gradient(circle at 30% 25%, oklch(30% 0.04 250), oklch(18% 0.02 250)); border: 1px solid var(--border-2); }
+  .avatar .mono { font-family: var(--mono); font-weight: 700; font-size: 30px; letter-spacing: -0.04em;
+    background: linear-gradient(120deg, var(--accent), var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .avatar svg { position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px); }
+  .maker .who h3 { font-size: 22px; letter-spacing: -0.02em; font-weight: 700; }
+  .maker .who .role { font-family: var(--mono); font-size: 13px; color: var(--accent); margin-top: 4px; }
+  .maker .who p { color: var(--muted); font-size: 15px; margin-top: 12px; max-width: 56ch; text-wrap: pretty; }
+  .maker .who p:last-of-type + .maker-links, .maker-links { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
+  @media (max-width: 640px) { .maker-links { justify-content: center; } }
+  .mlink { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 550; color: var(--fg);
+    border: 1px solid var(--border-2); background: oklch(100% 0 0 / .02); padding: 8px 13px; border-radius: 9px; transition: .15s; }
+  .mlink:hover { border-color: var(--accent); background: oklch(74% 0.15 200 / .07); transform: translateY(-1px); }
+  .mlink svg { width: 15px; height: 15px; color: var(--muted); }
+
   footer { border-top: 1px solid oklch(100% 0 0 / .06); padding: 40px 0; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
   footer .muted { color: var(--faint); font-size: 13px; font-family: var(--mono); }
@@ -210,6 +229,7 @@
       <a href="#features">Features</a>
       <a href="#screens">Screens</a>
       <a href="#how">How it works</a>
+      <a href="#about">About</a>
       <a class="ghbtn" href="https://github.com/dennisrongo/agent-status" target="_blank" rel="noopener">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
         GitHub
@@ -350,6 +370,42 @@
       </div>
     </div>
     <p class="sub reveal" style="font-size:14px;color:var(--faint);margin-top:18px">Honest by design: the app never invents a number. Where a real value isn't available, it says so.</p>
+  </div>
+</section>
+
+<section id="about">
+  <div class="wrap">
+    <p class="kicker reveal">About</p>
+    <h2 class="h2 reveal">Made by someone who kept running out of quota.</h2>
+    <div class="maker reveal">
+      <div class="avatar">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="1.5" y="1.5" width="21" height="21" rx="6" stroke="oklch(74% 0.15 200 / .35)" stroke-width="1"/>
+          <circle cx="12" cy="12" r="9.2" stroke="oklch(74% 0.15 200 / .18)" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="46 58" pathLength="58" transform="rotate(-90 12 12)"/>
+        </svg>
+        <span class="mono">DR</span>
+      </div>
+      <div class="who">
+        <h3>Dennis Rongo</h3>
+        <div class="role">Lean Code Automation LLC · builds developer tools</div>
+        <p>Agent Usage Monitor started as a personal itch: tracking Claude Code and GLM usage meant a slash command here, a browser tab there, and a lot of guessing. So it became one honest dropdown in the menu bar — real numbers, local-first, nothing invented.</p>
+        <p style="font-size:13.5px;color:var(--faint)">Built in the open with Tauri + Rust. Issues, ideas, and pull requests welcome.</p>
+        <div class="maker-links">
+          <a class="mlink" href="https://dennisrongo.com" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg>
+            dennisrongo.com
+          </a>
+          <a class="mlink" href="https://github.com/dennisrongo" target="_blank" rel="noopener">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+            @dennisrongo
+          </a>
+          <a class="mlink" href="https://github.com/dennisrongo/agent-status" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.5 8 11 4.6-2.5 8-6 8-11V5z"/></svg>
+            This project
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
