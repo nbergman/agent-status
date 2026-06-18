@@ -1,6 +1,6 @@
 [package]
 name = "agent-status"
-version = "0.1.2"
+version = "0.1.3"
 description = "Agent Usage Monitor — local CLI usage dashboard"
 edition = "2021"
 rust-version = "1.77"
