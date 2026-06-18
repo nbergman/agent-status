@@ -143,27 +143,36 @@ export default function App() {
 
             {eff === "claude" && (
               <>
-                <div className="kpis">
-                  {limits.buckets.slice(0, 3).map((b, i) => (
-                    <div className={`kpi ${["accent", "ok", ""][i]}`} key={b.name}>
-                      <div className="k-label">{tileLabel(b.name)}</div>
-                      <div className="k-num">{b.usedPct}%</div>
-                      <div className="k-sub">resets {b.reset}</div>
+                {limits.pending ? (
+                  <div className="connect-card">
+                    <p className="connect-title">Reading live Claude usage…</p>
+                    <p className="connect-sub">{limits.estimateNote}</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="kpis">
+                      {limits.buckets.slice(0, 3).map((b, i) => (
+                        <div className={`kpi ${["accent", "ok", ""][i]}`} key={b.name}>
+                          <div className="k-label">{tileLabel(b.name)}</div>
+                          <div className="k-num">{b.usedPct}%</div>
+                          <div className="k-sub">resets {b.reset}</div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
 
-                <div className="sec-head">
-                  <h2>Usage</h2>
-                  <span className="meta">
-                    {limits.planLabel === "live" ? "live · Claude" : `${limits.planLabel} plan · est.`}
-                  </span>
-                </div>
-                <div className="meters">
-                  {limits.buckets.map((b) => (
-                    <Meter bucket={b} key={b.name} />
-                  ))}
-                </div>
+                    <div className="sec-head">
+                      <h2>Usage</h2>
+                      <span className="meta">
+                        {limits.live ? "live · Claude" : `${limits.planLabel} plan · est.`}
+                      </span>
+                    </div>
+                    <div className="meters">
+                      {limits.buckets.map((b) => (
+                        <Meter bucket={b} key={b.name} />
+                      ))}
+                    </div>
+                  </>
+                )}
 
                 <div className="sec-head">
                   <h2>Last 7 days</h2>
@@ -189,10 +198,12 @@ export default function App() {
                   ))}
                 </div>
 
-                <div className="note">
-                  <InfoIcon />
-                  <p>{limits.estimateNote}</p>
-                </div>
+                {!limits.pending && (
+                  <div className="note">
+                    <InfoIcon />
+                    <p>{limits.estimateNote}</p>
+                  </div>
+                )}
               </>
             )}
 
