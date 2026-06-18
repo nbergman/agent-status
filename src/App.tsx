@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { Meter } from "./components/Meter";
 import { Settings } from "./components/Settings";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { VendorCard } from "./components/VendorCard";
 import { WeekChart } from "./components/WeekChart";
 import { useUsage } from "./hooks/useUsage";
@@ -66,9 +67,15 @@ export default function App() {
     <main className="widget">
       <header className="head">
         <span className="logo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="oklch(82% 0.13 200)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 3v18h18" />
-            <path d="M7 14l4-4 3 3 5-6" />
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="7.5" stroke="oklch(40% 0.04 220)" strokeWidth="3" />
+            <circle
+              cx="12" cy="12" r="7.5" fill="none"
+              stroke="oklch(82% 0.13 200)" strokeWidth="3" strokeLinecap="round"
+              strokeDasharray="32 47" pathLength="47"
+              transform="rotate(-90 12 12)"
+            />
+            <circle cx="12" cy="12" r="2.1" fill="oklch(82% 0.13 200)" />
           </svg>
         </span>
         <div>
@@ -99,6 +106,8 @@ export default function App() {
           </svg>
         </button>
       </header>
+
+      <UpdateBanner />
 
       <nav className="tabs">
         {(["overview", "sessions", "providers", "settings"] as Tab[]).map((t) => (

@@ -32,9 +32,22 @@
       "csp": "default-src 'self'; img-src 'self' data: asset: https://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ws://localhost:5173 http://localhost:5173"
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk3QUQ2Njg1NDVCOEREMUQKUldRZDNiaEZoV2F0bDQzNlRla0xCSU84d3FERmdMWkpabUxaaFVGa3Z1bGVrYzVMczFoclBBYlcK",
+      "endpoints": [
+        "https://github.com/dennisrongo/agent-status/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
+    "category": "DeveloperTool",
+    "copyright": "© 2026 Lean Code Automation LLC",
+    "shortDescription": "Menubar widget for Claude Code & GLM CLI usage.",
+    "longDescription": "A lightweight macOS menubar widget that tracks Claude Code and GLM CLI usage in real time — session/weekly/Opus limits, token spend, cost estimates, and per-session history, read from local logs.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -43,7 +56,8 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "minimumSystemVersion": "10.15"
+      "minimumSystemVersion": "10.15",
+      "entitlements": "entitlements.plist"
     }
   }
 }

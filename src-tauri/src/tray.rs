@@ -13,8 +13,15 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "Show / Hide", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &quit])?;
 
+    // Monochrome template icon → macOS tints it to match the menu bar
+    // (light/dark) and keeps the transparent background, unlike the filled
+    // app icon. Falls back to the window icon if decoding ever fails.
+    let tray_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png"))
+        .unwrap_or_else(|_| app.default_window_icon().unwrap().clone());
+
     TrayIconBuilder::with_id("main-tray")
-        .icon(app.default_window_icon().unwrap().clone())
+        .icon(tray_icon)
+        .icon_as_template(true)
         .tooltip("Agent Usage Monitor")
         .menu(&menu)
         .show_menu_on_left_click(false)

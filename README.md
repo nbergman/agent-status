@@ -32,6 +32,7 @@ Session / weekly / Opus limits · token spend · cost estimates · per-session h
 - **Live vendor data (optional).** Add a GLM Coding Plan or Anthropic admin API key — stored **encrypted, machine-bound** — for real GLM 5h/weekly quota and org-level Anthropic cost.
 - **Always current.** A Rust timer re-scans and pushes fresh data to the UI — **auto-refresh interval is configurable in Settings (default 30s)**, applied live without a restart. No frozen snapshots.
 - **Stays out of the way.** Menubar-only (`LSUIElement`), click-to-toggle dropdown, single-instance, launch-at-login.
+- **Self-updating.** Signed auto-updates via the Tauri updater — an in-app "Update & restart" banner appears when a newer build ships.
 
 ---
 
@@ -107,11 +108,24 @@ The backend scans logs (off-thread via `spawn_blocking`), optionally fetches liv
 ```bash
 npm install
 npm run tauri dev      # develop
-npm run tauri build    # bundle the .app
+npm run tauri build    # bundle an unsigned .app + .dmg (local testing)
 ```
 
 > **Heads-up:** if your shell sets `NODE_ENV=production`, install with
 > `NODE_ENV=development npm install --include=dev` so the dev toolchain is included.
+
+### 📦 Shipping a signed build
+
+For a `.dmg` that installs cleanly on **any** Mac (no Gatekeeper warnings), it
+must be **signed with a Developer ID cert and notarized by Apple**:
+
+```bash
+cp .env.example .env   # fill in your signing identity + notarization creds
+./scripts/release-mac.sh
+```
+
+See **[docs/RELEASE.md](docs/RELEASE.md)** for the full runbook (certificates,
+notarization credentials, verification, universal builds, troubleshooting).
 
 ---
 
@@ -160,6 +174,7 @@ CI runs the suite on macOS / Windows / Ubuntu (`.github/workflows/unit-tests.yml
 
 ## 📝 Notes / TODO
 
-- **Icon** is a generated placeholder bar-chart — replace `src-tauri/icons/icon.png` (1024×1024) and run `npx @tauri-apps/cli icon src-tauri/icons/icon.png`.
-- **Bundle identifier** is `com.dennisrongo.agentstatus` — change in `src-tauri/tauri.conf.json` before distributing.
+- **Icon** lives at `src-tauri/icons/icon.svg` → `icon.png`; re-run `npx @tauri-apps/cli icon src-tauri/icons/icon.png` after editing to regenerate every size.
+- **Bundle identifier** is `com.dennisrongo.agentstatus` — change in `src-tauri/tauri.conf.json` if distributing under a different org.
+- **Signing, notarization & auto-updates** for distribution — see [docs/RELEASE.md](docs/RELEASE.md).
 - Live vendor endpoints are best-effort and unverified offline — confirm against your accounts on first run.

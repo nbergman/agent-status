@@ -211,5 +211,11 @@ body {
 .interval-select { width: 100%; appearance: none; background: var(--bar-bg); border: 1px solid var(--border-2); border-radius: 7px; color: var(--fg); font-family: var(--mono); font-size: 12px; padding: 8px 10px; cursor: pointer; }
 .interval-select:focus { outline: none; border-color: var(--accent); }
 
+.update-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 12px 8px; padding: 7px 11px; border-radius: 8px; background: color-mix(in oklab, var(--accent) 16%, var(--surface-2)); border: 1px solid var(--accent); color: var(--fg); font-size: 11px; font-weight: 550; }
+.update-banner.err { background: color-mix(in oklab, var(--danger) 14%, var(--surface-2)); border-color: var(--danger); }
+.update-btn { appearance: none; border: none; background: var(--accent); color: oklch(18% 0.02 240); font-family: var(--font); font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 6px; cursor: pointer; flex: none; transition: .15s; }
+.update-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.update-btn:disabled { opacity: .55; cursor: progress; }
+
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
