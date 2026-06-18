@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 
+import { About } from "./components/About";
 import { Meter } from "./components/Meter";
 import { Settings } from "./components/Settings";
 import { UpdateBanner } from "./components/UpdateBanner";
@@ -10,7 +11,7 @@ import { useUsage } from "./hooks/useUsage";
 import { isTauriReady } from "./tauriReady";
 import type { Glm, PlanKey, VendorStatus } from "./types";
 
-type Tab = "overview" | "sessions" | "providers" | "settings";
+type Tab = "overview" | "sessions" | "providers" | "settings" | "about";
 
 // Full window height from tauri.conf.json. Minimal view shrinks below this to
 // fit the headline stats; everything else uses the full height.
@@ -146,7 +147,7 @@ export default function App() {
       <UpdateBanner />
 
       <nav className="tabs">
-        {(["overview", "sessions", "providers", "settings"] as Tab[]).map((t) => (
+        {(["overview", "sessions", "providers", "settings", "about"] as Tab[]).map((t) => (
           <button
             key={t}
             className="tab"
@@ -376,6 +377,8 @@ export default function App() {
             keyError={keyError}
           />
         )}
+
+        {tab === "about" && <About />}
       </div>
 
       {!minimal && (

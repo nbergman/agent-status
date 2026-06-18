@@ -113,6 +113,7 @@ pub fn run() {
             commands::set_glm_endpoint,
             commands::set_api_key,
             commands::clear_api_key,
+            commands::open_url,
         ])
         .run(tauri::generate_context!())
         .expect("error while running agent-status");

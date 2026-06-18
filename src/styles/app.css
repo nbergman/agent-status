@@ -226,5 +226,21 @@ body {
 .update-status.err { color: var(--danger); }
 .version-foot { text-align: center; color: var(--faint); font-family: var(--mono); font-size: 10px; letter-spacing: .02em; padding: 12px 0 2px; }
 
+/* about */
+.about-hero { display: flex; align-items: center; gap: 13px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 15px 14px; margin-bottom: 9px; }
+.about-logo { width: 44px; height: 44px; border-radius: 11px; flex: none; display: grid; place-items: center; background: linear-gradient(135deg, oklch(40% 0.06 200), oklch(30% 0.03 250)); border: 1px solid var(--border-2); }
+.about-logo svg { width: 24px; height: 24px; }
+.about-name { font-size: 14px; font-weight: 650; letter-spacing: -0.01em; }
+.about-tagline { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.about-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; margin-bottom: 9px; }
+.about-row-label { display: block; font-size: 12.5px; font-weight: 600; }
+.about-row-sub { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; }
+.about-row-sub.err { color: var(--danger); }
+.about-value { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: -0.02em; }
+.about-row .btn { flex: none; white-space: nowrap; }
+.about-link { display: inline-flex; align-items: center; gap: 5px; flex: none; white-space: nowrap; font-size: 12px; font-weight: 600; color: var(--accent); text-decoration: none; cursor: pointer; }
+.about-link:hover { text-decoration: underline; }
+.about-link svg { opacity: .75; }
+
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }

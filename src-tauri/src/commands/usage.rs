@@ -294,6 +294,20 @@ pub fn clear_api_key(
     Ok((&updated).into())
 }
 
+/// Open an http(s) URL in the user's default browser (macOS `open`).
+/// Scheme-restricted so it can't be misused as a generic process launcher.
+#[tauri::command]
+pub fn open_url(url: String) -> Result<(), String> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err(format!("refusing to open non-http url: {url}"));
+    }
+    std::process::Command::new("open")
+        .arg(&url)
+        .spawn()
+        .map(drop)
+        .map_err(|e| e.to_string())
+}
+
 fn update_settings(
     state: &State<'_, Mutex<AppState>>,
     mutate: impl FnOnce(&mut Settings),
