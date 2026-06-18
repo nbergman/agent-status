@@ -48,14 +48,25 @@ pub fn run() {
 
             // Load settings and seed managed state.
             let loaded = settings::load(&handle);
+            let launch_on_startup = loaded.launch_on_startup;
             app.manage(Mutex::new(AppState::new(loaded)));
             app.manage(crate::state::CollectLock::default());
 
             // Tray + dropdown.
             tray::build(&handle)?;
 
-            // Launch at login (menubar widgets are expected to persist).
-            let _ = app.autolaunch().enable();
+            // Sync the OS launch-at-login registration with the saved setting
+            // (defaults on — menubar widgets are expected to persist). Keeps the
+            // registration honest after the user toggles it off in Settings.
+            let autostart = app.autolaunch();
+            let synced = if launch_on_startup {
+                autostart.enable()
+            } else {
+                autostart.disable()
+            };
+            if let Err(e) = synced {
+                tracing::warn!("failed to sync launch-at-login: {e}");
+            }
 
             // Background refresh loop: re-scan the logs on an interval and push
             // the fresh snapshot to the frontend.
@@ -96,6 +107,7 @@ pub fn run() {
             commands::get_settings,
             commands::set_plan,
             commands::set_live_claude,
+            commands::set_launch_on_startup,
             commands::set_refresh_secs,
             commands::set_glm_endpoint,
             commands::set_api_key,

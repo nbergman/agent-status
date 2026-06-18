@@ -31,6 +31,9 @@ pub struct Settings {
     /// Use Claude's live usage API (reads the Claude Code OAuth token) for the
     /// Overview meters instead of the local token estimate.
     pub live_claude: bool,
+    /// Register the app to launch automatically at login. Menubar widgets are
+    /// expected to persist, so this defaults on.
+    pub launch_on_startup: bool,
 }
 
 impl Default for Settings {
@@ -42,6 +45,7 @@ impl Default for Settings {
             zai_key: None,
             anthropic_key: None,
             live_claude: true,
+            launch_on_startup: true,
         }
     }
 }
@@ -56,6 +60,7 @@ pub struct SettingsView {
     pub glm_key_set: bool,
     pub anthropic_key_set: bool,
     pub live_claude: bool,
+    pub launch_on_startup: bool,
 }
 
 impl From<&Settings> for SettingsView {
@@ -67,6 +72,7 @@ impl From<&Settings> for SettingsView {
             glm_key_set: s.zai_key.is_some(),
             anthropic_key_set: s.anthropic_key.is_some(),
             live_claude: s.live_claude,
+            launch_on_startup: s.launch_on_startup,
         }
     }
 }

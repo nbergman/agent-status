@@ -26,6 +26,7 @@ export default function App() {
     setGlmEndpoint,
     setRefreshSecs,
     setLiveClaude,
+    setLaunchOnStartup,
     refresh,
     isLoading,
     error,
@@ -320,6 +321,7 @@ export default function App() {
             setGlmEndpoint={setGlmEndpoint}
             setRefreshSecs={setRefreshSecs}
             setLiveClaude={setLiveClaude}
+            setLaunchOnStartup={setLaunchOnStartup}
             keyError={keyError}
           />
         )}

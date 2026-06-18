@@ -128,4 +128,5 @@ export interface SettingsView {
   glmKeySet: boolean;
   anthropicKeySet: boolean;
   liveClaude: boolean;
+  launchOnStartup: boolean;
 }

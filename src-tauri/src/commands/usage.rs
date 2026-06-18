@@ -3,6 +3,7 @@
 use std::sync::Mutex;
 
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_autostart::ManagerExt;
 
 use crate::encryption::{self, EncryptedSecret};
 use crate::error::ResultExt;
@@ -194,6 +195,26 @@ pub fn set_live_claude(
     enabled: bool,
 ) -> Result<SettingsView, String> {
     let updated = update_settings(&state, |s| s.live_claude = enabled)?;
+    settings::save(&app, &updated).into_string()?;
+    Ok((&updated).into())
+}
+
+/// Toggle launch-at-login. Registers/unregisters the OS launch agent, then
+/// persists the choice. The registration is applied before saving so a failure
+/// to update the OS leaves the stored setting untouched.
+#[tauri::command]
+pub fn set_launch_on_startup(
+    app: AppHandle,
+    state: State<'_, Mutex<AppState>>,
+    enabled: bool,
+) -> Result<SettingsView, String> {
+    let autostart = app.autolaunch();
+    if enabled {
+        autostart.enable().map_err(|e| e.to_string())?;
+    } else {
+        autostart.disable().map_err(|e| e.to_string())?;
+    }
+    let updated = update_settings(&state, |s| s.launch_on_startup = enabled)?;
     settings::save(&app, &updated).into_string()?;
     Ok((&updated).into())
 }

@@ -11,6 +11,7 @@ interface Props {
   setGlmEndpoint: (endpoint: string) => Promise<void>;
   setRefreshSecs: (secs: number) => Promise<void>;
   setLiveClaude: (enabled: boolean) => Promise<void>;
+  setLaunchOnStartup: (enabled: boolean) => Promise<void>;
   keyError: string | null;
 }
 
@@ -30,6 +31,7 @@ export function Settings({
   setGlmEndpoint,
   setRefreshSecs,
   setLiveClaude,
+  setLaunchOnStartup,
   keyError,
 }: Props) {
   return (
@@ -74,6 +76,27 @@ export function Settings({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="sec-head">
+        <h2>Startup</h2>
+        <span className="meta">{settings.launchOnStartup ? "on" : "off"}</span>
+      </div>
+      <div className="key-row">
+        <label className="toggle-row">
+          <span>
+            <span className="key-label">Launch at login</span>
+            <span className="connect-sub" style={{ margin: "4px 0 0" }}>
+              Start Agent Usage Monitor automatically when you log in.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            className="toggle"
+            checked={settings.launchOnStartup}
+            onChange={(e) => setLaunchOnStartup(e.target.checked)}
+          />
+        </label>
       </div>
 
       <div className="sec-head">

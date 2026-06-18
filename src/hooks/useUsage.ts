@@ -17,6 +17,7 @@ export function useUsage() {
   const planCmd = useTauriCommand<SettingsView>("set_plan");
   const refreshSecsCmd = useTauriCommand<SettingsView>("set_refresh_secs");
   const liveClaudeCmd = useTauriCommand<SettingsView>("set_live_claude");
+  const launchOnStartupCmd = useTauriCommand<SettingsView>("set_launch_on_startup");
   const endpointCmd = useTauriCommand<SettingsView>("set_glm_endpoint");
   const setKeyCmd = useTauriCommand<SettingsView>("set_api_key");
   const clearKeyCmd = useTauriCommand<SettingsView>("clear_api_key");
@@ -69,6 +70,14 @@ export function useUsage() {
       }
     },
     [liveClaudeCmd, refresh],
+  );
+
+  const setLaunchOnStartup = useCallback(
+    async (enabled: boolean) => {
+      const updated = await launchOnStartupCmd.execute({ enabled });
+      if (updated) setSettings(updated);
+    },
+    [launchOnStartupCmd],
   );
 
   const setGlmEndpoint = useCallback(
@@ -127,6 +136,7 @@ export function useUsage() {
     setPlan,
     setRefreshSecs,
     setLiveClaude,
+    setLaunchOnStartup,
     setGlmEndpoint,
     setApiKey,
     clearApiKey,
