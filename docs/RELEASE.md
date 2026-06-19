@@ -124,10 +124,11 @@ up** — losing it means existing installs can never auto-update again.
 
 To ship an update:
 
-1. Bump `version` in **`package.json`**, **`src-tauri/Cargo.toml`**,
-   **`src-tauri/Cargo.lock`**, and **`src-tauri/tauri.conf.json`** (keep all four in
-   sync — `tauri.conf.json` is the value shown in the app and written into
-   `latest.json`). Commit (signed — see [Verified commits](#verified-commits)).
+1. Bump `version` in **`package.json`**, **`package-lock.json`** (top-level +
+   `packages.""`), **`src-tauri/Cargo.toml`**, **`src-tauri/Cargo.lock`**, and
+   **`src-tauri/tauri.conf.json`** (keep all five in sync — `tauri.conf.json` is the
+   value shown in the app and written into `latest.json`). Commit (signed — see
+   [Verified commits](#verified-commits)).
 2. Run **`./scripts/release-mac.sh --publish`**. This signs + notarizes, produces
    the updater payload, **merges** the `darwin-*` entries into the tracked
    `updater/latest.json` (via `scripts/merge-manifest.mjs`), **generates release

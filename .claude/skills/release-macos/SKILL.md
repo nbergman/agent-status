@@ -18,12 +18,13 @@ Do **not** trigger for a local dev build (`npm run tauri dev`, `cargo build`) �
 ## Workflow
 
 1. **Determine the new version.** Ask if unspecified; otherwise infer patch/minor/major from the request. It MUST be strictly greater than the current `tauri.conf.json` version — the auto-updater only fires on a newer version, so never re-publish an existing one.
-2. **Bump the version in all four files, kept identical:**
+2. **Bump the version in all five files, kept identical:**
    - `package.json` (`"version"`)
+   - `package-lock.json` (both the top-level `"version"` and `packages.""` `"version"`)
    - `src-tauri/Cargo.toml` (`[package] version`)
    - `src-tauri/Cargo.lock` (the `name = "agent-status"` package entry)
    - `src-tauri/tauri.conf.json` (`"version"` — this is the value shown in-app and written into `latest.json`)
-   Then confirm all four match (`grep`).
+   Then confirm all five match (`grep`).
 3. **Typecheck:** `npm run build`. Fix any error before continuing.
 4. **Commit + push (signed):** stage, verify no secret is staged (`git diff --cached --name-only | grep -iE '\.env$|\.key$|\.p8$'` must be empty), commit the bump with a **signed** commit (`git commit -S`) so it shows the "Verified" badge on GitHub, then `git push origin main`. (One-time SSH-signing setup: see `docs/RELEASE.md` → *Verified commits*.)
 5. **Build + publish:** `./scripts/release-mac.sh --publish`. This builds universal (Intel + ARM), signs with Developer ID, notarizes + staples, **merges** the `darwin-aarch64` + `darwin-x86_64` entries into the tracked `updater/latest.json` (via `scripts/merge-manifest.mjs`, so a later Windows build can add `windows-x86_64` without clobbering these), generates **release notes from the commit log** since the previous tag, and creates the GitHub release `vX.Y.Z` (or refreshes notes + re-uploads if it already exists). Requires `.env` (Apple creds + `TAURI_SIGNING_PRIVATE_KEY`); the first signing of a session may need keychain "Always Allow".
@@ -68,7 +69,7 @@ See `docs/RELEASE.md` for the full runbook and `scripts/release-mac.sh` for the 
 - ❌ Using `TAURI_SIGNING_PRIVATE_KEY_PATH` — the build reads `TAURI_SIGNING_PRIVATE_KEY` (a path or the key contents). The `_PATH` name is silently ignored and no `.sig` is produced.
 - ❌ Committing `.env` or the updater private key, or echoing their contents.
 - ❌ Re-publishing the same version (or a lower one) — installed apps won't update. Always bump first.
-- ❌ Bumping only some of the four version files — a mismatch means a confusing in-app version or a manifest that doesn't match the binary.
+- ❌ Bumping only some of the five version files — a mismatch means a confusing in-app version, a manifest that doesn't match the binary, or a stale `package-lock.json`.
 - ❌ Hand-writing `latest.json` from scratch — go through `scripts/merge-manifest.mjs` (the script does). A from-scratch darwin-only manifest would wipe a `windows-x86_64` entry a Windows build added for the same version.
 - ❌ Forgetting to commit `updater/latest.json` — the Windows build pulls it to learn the mac signatures; a stale committed manifest makes Windows merge against the wrong version.
 - ✅ Bump everywhere → typecheck → signed commit → `--publish` → signed commit of `updater/latest.json` → verify the live endpoint.
