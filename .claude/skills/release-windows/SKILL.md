@@ -25,7 +25,7 @@ Do **not** trigger for a local dev build (`npm run tauri dev`, `cargo build`).
 ## Prerequisites (one-time per Windows machine)
 
 - **Toolchain:** Node + npm, Rust (MSVC toolchain), and the Tauri prerequisites (WebView2 is present on Win10/11). `gh` authenticated (`gh auth status`), `git` configured.
-- **Updater key:** copy `~/.tauri/agent-status-updater.key` from the Mac, then set `TAURI_SIGNING_PRIVATE_KEY` (path or base64 contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` in `.env`. **It must be the same key as macOS** or the signature won't validate against the embedded pubkey.
+- **Updater key:** copy `~/.tauri/agent-status-updater.key` from the Mac, then set `TAURI_SIGNING_PRIVATE_KEY` (path or base64 contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` in `.env`. **It must be the same key as macOS** or the signature won't validate against the embedded pubkey. `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` **must match the key's password** — set it to `""` if the key has none. The script signs via `tauri signer sign -p <password>`, so an empty password works; a wrong/omitted one fails the preflight's *"Updater key can sign"* check in ~2s (before any build).
 - **Verified commits (for the "Verified" badge):** set up SSH commit signing once — see `docs/RELEASE.md` → *Verified commits*. Then the manifest commit below shows as Verified on GitHub.
 
 > Verify all of the above at once with `./scripts/release-win.ps1 -Preflight` (checklist only — builds nothing).
@@ -45,7 +45,7 @@ Do **not** trigger for a local dev build (`npm run tauri dev`, `cargo build`).
 2. **Read (don't bump) the version.** The version is whatever `src-tauri/tauri.conf.json` says — macOS already set it. Never bump on the Windows side.
 3. **Confirm the macOS release exists.** `gh release view v<VERSION>` must succeed. If it doesn't, stop — the macOS release must be cut first (Windows only follows). `scripts/release-win.ps1` also enforces this and that `updater/latest.json` is already at this version.
 4. **Typecheck:** `npm install` (if deps changed) then `npm run build`. Fix any error before continuing.
-5. **Build + publish:** `./scripts/release-win.ps1 -Publish`. This builds the NSIS installer, signs the update payload, **merges** `windows-x86_64` into `updater/latest.json` (preserving the darwin entries), and uploads the `.exe` + `.nsis.zip` + `.sig` + `latest.json` into the existing `v<VERSION>` release with `--clobber`. The release notes are left untouched.
+5. **Build + publish:** `./scripts/release-win.ps1 -Publish`. This builds the NSIS installer (with build-time signing disabled), zips + signs the update payload itself via the `tauri signer` CLI, **merges** `windows-x86_64` into `updater/latest.json` (preserving the darwin entries), and uploads the `.exe` + `.nsis.zip` + `.sig` + `latest.json` into the existing `v<VERSION>` release with `--clobber`. The release notes are left untouched.
 6. **Commit the merged manifest:** verify no secret is staged (`git diff --cached --name-only` must not include `.env` or `*.key`), then commit `updater/latest.json` with a **signed** commit and push:
    ```bash
    git add updater/latest.json
@@ -94,3 +94,4 @@ See `docs/RELEASE.md` → *Releasing the Windows app* for the full runbook and `
 - **SmartScreen:** the `.exe` is not Authenticode-signed (updater-signature-only by design), so Windows shows an "unknown publisher" warning on first install. The in-app auto-updater still works because it uses the Tauri updater signature, not Authenticode. Add a code-signing cert later if the warning matters.
 - **Bundle output** lives under `src-tauri/target/release/bundle/nsis/` (host x64 build, no target triple). The updater key for NSIS is `windows-x86_64`.
 - Run the script without `-Publish` to build + merge the manifest locally without touching GitHub (dry run).
+- **Signing is done by `tauri signer sign`, not by `tauri build`.** The script disables `createUpdaterArtifacts` for the build, then zips the installer and signs the zip itself, passing the password with `-p`. This is deliberate: `tauri build`'s build-time signing prompts for the key password on the **console** when `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` is absent — and on Windows an env var set to `""` is *deleted*, so an empty password can never reach the build that way. The result was a silent hang at *"Decrypting updater signing key, expect a prompt for password."* If you ever see that message, the build is using build-time signing — the CLI-signing path here avoids it entirely.

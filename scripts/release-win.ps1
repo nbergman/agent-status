@@ -21,6 +21,14 @@
   pubkey in tauri.conf.json, so the Windows machine must have a COPY of that key.
   The key is a secret — copy it over (or paste its base64 contents), never commit it.
 
+  Signing is done by the `tauri signer` CLI (not by `tauri build`), passing the
+  password via -p. Build-time signing is deliberately disabled: it reads the
+  password from $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD and, when that is unset,
+  blocks on an interactive console prompt that hangs headless runs — and on
+  Windows an empty password can't be passed via the environment at all (setting
+  an env var to "" deletes it). Set TAURI_SIGNING_PRIVATE_KEY_PASSWORD in .env to
+  the key's password ("" if it has none).
+
   This does NOT Authenticode-sign the .exe, so Windows SmartScreen will warn
   "unknown publisher" on first install. The auto-updater works regardless.
 
@@ -53,6 +61,39 @@ function Assert-LastExit($what) {
   if ($LASTEXITCODE -ne 0) { Die "$what failed (exit $LASTEXITCODE)." }
 }
 function Has-Command($name) { return [bool](Get-Command $name -ErrorAction SilentlyContinue) }
+
+# Sign a file with the Tauri updater key via the signer CLI, passing the password
+# explicitly with -p so an empty password signs non-interactively (no console
+# prompt). $Key is a file path or inline base64 contents. Two Windows quirks are
+# handled here:
+#   * The CLI auto-reads the key from TAURI_SIGNING_PRIVATE_KEY (--private-key) /
+#     TAURI_SIGNING_PRIVATE_KEY_PATH (--private-key-path). Our explicit -f/-k flag
+#     would collide ("cannot be used with"), so we clear both for the call.
+#   * Windows PowerShell 5.1 silently DROPS empty-string args to native commands,
+#     so `-p ""` would vanish (the file then gets eaten as the password). For an
+#     empty password we run the signer from a temp .cmd, where "" survives.
+# Returns the CLI output; the caller checks $LASTEXITCODE.
+function Invoke-SignerSign {
+  param([string]$Key, [string]$Password, [string]$File)
+  $keyArgs = if (Test-Path -LiteralPath $Key -ErrorAction SilentlyContinue) { @('-f', $Key) } else { @('-k', $Key) }
+  $savedK = [Environment]::GetEnvironmentVariable('TAURI_SIGNING_PRIVATE_KEY', 'Process')
+  $savedP = [Environment]::GetEnvironmentVariable('TAURI_SIGNING_PRIVATE_KEY_PATH', 'Process')
+  [Environment]::SetEnvironmentVariable('TAURI_SIGNING_PRIVATE_KEY', $null, 'Process')
+  [Environment]::SetEnvironmentVariable('TAURI_SIGNING_PRIVATE_KEY_PATH', $null, 'Process')
+  try {
+    if ([string]::IsNullOrEmpty($Password)) {
+      $bat = Join-Path ([System.IO.Path]::GetTempPath()) ("relwin-sign-{0}.cmd" -f $PID)
+      $line = 'npx --no-install tauri signer sign {0} "{1}" -p "" "{2}"' -f $keyArgs[0], $keyArgs[1], $File
+      Set-Content -LiteralPath $bat -Value @('@echo off', $line) -Encoding ascii
+      try { return (& cmd /c $bat 2>&1) } finally { Remove-Item -LiteralPath $bat -ErrorAction SilentlyContinue }
+    } else {
+      return (& npx --no-install tauri signer sign @keyArgs -p $Password "$File" 2>&1)
+    }
+  } finally {
+    [Environment]::SetEnvironmentVariable('TAURI_SIGNING_PRIVATE_KEY', $savedK, 'Process')
+    [Environment]::SetEnvironmentVariable('TAURI_SIGNING_PRIVATE_KEY_PATH', $savedP, 'Process')
+  }
+}
 
 # --- Preflight: a readiness checklist with an exact fix for each gap ----------
 $script:Checks = @()
@@ -112,6 +153,29 @@ function Invoke-Preflight {
     Add-Check 'Updater key' 'OK' 'inline base64 contents'
   } else {
     Add-Check 'Updater key' 'FAIL' "not a file, too short to be an inline key: $key" 'Point TAURI_SIGNING_PRIVATE_KEY at the key file copied from the Mac, or its base64 contents.'
+  }
+
+  # --- Updater key can actually sign (catches wrong/missing password) ---
+  # Signing happens via `tauri signer sign -p <pw>` (build-time signing is
+  # disabled because it would hang on a console password prompt). Prove the
+  # key + TAURI_SIGNING_PRIVATE_KEY_PASSWORD combination signs non-interactively
+  # so we fail in ~2s here instead of after a multi-minute build.
+  if (-not [string]::IsNullOrWhiteSpace($key) -and (Has-Command 'npx')) {
+    $pw = $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD; if ($null -eq $pw) { $pw = '' }
+    $probe = Join-Path ([System.IO.Path]::GetTempPath()) ("relwin-signprobe-{0}.txt" -f $PID)
+    Set-Content -LiteralPath $probe -Value 'probe' -Encoding ascii
+    try {
+      $out = Invoke-SignerSign -Key $key -Password $pw -File $probe
+      if ($LASTEXITCODE -eq 0) {
+        Add-Check 'Updater key can sign' 'OK' 'signs non-interactively'
+      } else {
+        $hint = (($out | Out-String).Trim() -split "`n" | Select-Object -First 1)
+        Add-Check 'Updater key can sign' 'FAIL' $hint 'Set TAURI_SIGNING_PRIVATE_KEY_PASSWORD in .env to the key''s password (use "" if the key has none).'
+      }
+    } finally {
+      Remove-Item -LiteralPath $probe -ErrorAction SilentlyContinue
+      Remove-Item -LiteralPath "$probe.sig" -ErrorAction SilentlyContinue
+    }
   }
 
   # --- Git / branch / freshness ---
@@ -246,24 +310,51 @@ $ManifestPath = 'updater/latest.json'
 Write-Host ''
 Write-Host "==> Following macOS release $Tag on $Repo (building Windows NSIS for $Version)"
 
-# --- Build -------------------------------------------------------------------
-# Host x64 build (no --target), NSIS bundle only. createUpdaterArtifacts in
-# tauri.conf.json makes Tauri sign the payload and emit the .nsis.zip + .sig.
-npx tauri build --bundles nsis
-Assert-LastExit 'tauri build'
-
-$NsisDir = 'src-tauri/target/release/bundle/nsis'
-$Exe = Get-ChildItem "$NsisDir/*_x64-setup.exe"          -ErrorAction SilentlyContinue | Select-Object -First 1
-$Zip = Get-ChildItem "$NsisDir/*_x64-setup.nsis.zip"     -ErrorAction SilentlyContinue | Select-Object -First 1
-$Sig = Get-ChildItem "$NsisDir/*_x64-setup.nsis.zip.sig" -ErrorAction SilentlyContinue | Select-Object -First 1
-
-if (-not $Zip -or -not $Sig) {
-  Die "No updater payload under $NsisDir (expected *_x64-setup.nsis.zip + .sig). Confirm TAURI_SIGNING_PRIVATE_KEY is set and 'createUpdaterArtifacts' is true."
+# --- Build (NSIS only, NO build-time signing) --------------------------------
+# We DISABLE createUpdaterArtifacts for the build so `tauri build` never signs.
+# Why: its build-time signer reads the key password from
+# $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD and, when that is absent, blocks on an
+# interactive CONSOLE prompt ("Decrypting updater signing key, expect a prompt
+# for password") that hangs any headless/background run forever. Windows also
+# can't hold a present-but-empty env var (setting one to "" deletes it), so an
+# empty key password is impossible to pass through the environment. Instead we
+# build only the .exe, zip it, and sign the zip with the signer CLI below, which
+# takes the password as an explicit -p argument (empty or not) — no prompt.
+$NoUpdaterCfg = Join-Path ([System.IO.Path]::GetTempPath()) ("relwin-noupdater-{0}.json" -f $PID)
+'{ "bundle": { "createUpdaterArtifacts": false } }' | Set-Content -LiteralPath $NoUpdaterCfg -Encoding ascii
+try {
+  npx tauri build --bundles nsis -c "$NoUpdaterCfg"
+  Assert-LastExit 'tauri build'
+} finally {
+  Remove-Item -LiteralPath $NoUpdaterCfg -ErrorAction SilentlyContinue
 }
 
+$NsisDir = 'src-tauri/target/release/bundle/nsis'
+$Exe = Get-ChildItem "$NsisDir/*_x64-setup.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $Exe) { Die "No NSIS installer under $NsisDir (expected *_x64-setup.exe)." }
+
+# --- Build the updater payload (.nsis.zip) and sign it ourselves -------------
+# tauri-bundler names the payload <installer>.nsis.zip; the updater extracts it
+# and runs the first *.exe inside. We reproduce that, then sign with the signer
+# CLI (-f file / -k inline, -p password). This is the ONE place the key is used,
+# and -p makes an empty password work non-interactively.
+$ZipPath = ($Exe.FullName -replace '\.exe$', '.nsis.zip')
+Remove-Item -LiteralPath $ZipPath -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath "$ZipPath.sig" -ErrorAction SilentlyContinue
+Compress-Archive -LiteralPath $Exe.FullName -DestinationPath $ZipPath -Force
+
+$SignKey = $env:TAURI_SIGNING_PRIVATE_KEY
+$SignPw  = $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD; if ($null -eq $SignPw) { $SignPw = '' }
+$signOut = Invoke-SignerSign -Key $SignKey -Password $SignPw -File $ZipPath
+if ($LASTEXITCODE -ne 0) { Write-Host ($signOut | Out-String); Die 'tauri signer sign failed.' }
+
+$Zip = Get-Item -LiteralPath $ZipPath
+$Sig = Get-Item -LiteralPath "$ZipPath.sig" -ErrorAction SilentlyContinue
+if (-not $Sig) { Die "Signing produced no $($Zip.Name).sig - check TAURI_SIGNING_PRIVATE_KEY / TAURI_SIGNING_PRIVATE_KEY_PASSWORD." }
+
 Write-Host ''
-Write-Host '==> Built:'
-if ($Exe) { Write-Host "    $($Exe.FullName)" }
+Write-Host '==> Built + signed:'
+Write-Host "    $($Exe.FullName)"
 Write-Host "    $($Zip.FullName)"
 Write-Host "    $($Sig.FullName)"
 
