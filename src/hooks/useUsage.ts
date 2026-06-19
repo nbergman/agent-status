@@ -13,6 +13,7 @@ type Provider = "glm" | "anthropic";
  */
 export function useUsage() {
   const usageCmd = useTauriCommand<UsageSnapshot>("get_usage");
+  const reconnectCmd = useTauriCommand<UsageSnapshot>("reconnect_claude");
   const settingsCmd = useTauriCommand<SettingsView>("get_settings");
   const planCmd = useTauriCommand<SettingsView>("set_plan");
   const refreshSecsCmd = useTauriCommand<SettingsView>("set_refresh_secs");
@@ -42,6 +43,13 @@ export function useUsage() {
     const data = await usageCmd.execute();
     if (data) applySnapshot(data);
   }, [usageCmd, applySnapshot]);
+
+  // Refresh the expired Claude Code login token in place and re-pull usage.
+  const reconnectClaude = useCallback(async () => {
+    const data = await reconnectCmd.execute();
+    if (data) applySnapshot(data);
+    return data;
+  }, [reconnectCmd, applySnapshot]);
 
   const setPlan = useCallback(
     async (plan: PlanKey) => {
@@ -151,6 +159,9 @@ export function useUsage() {
     setApiKey,
     clearApiKey,
     refresh,
+    reconnectClaude,
+    reconnecting: reconnectCmd.isLoading,
+    reconnectError: reconnectCmd.error,
     isLoading: usageCmd.isLoading,
     error: usageCmd.error,
     keyError: setKeyCmd.error,

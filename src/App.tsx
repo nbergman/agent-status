@@ -37,6 +37,9 @@ export default function App() {
     setLaunchOnStartup,
     setMinimalView,
     refresh,
+    reconnectClaude,
+    reconnecting,
+    reconnectError,
     isLoading,
     error,
     keyError,
@@ -180,13 +183,45 @@ export default function App() {
 
             {eff === "claude" && (
               <>
-                {limits.pending ? (
+                {limits.needsReauth ? (
+                  <div className="connect-card warn">
+                    <p className="connect-title">Claude Code login expired</p>
+                    <p className="connect-sub">
+                      Reconnect to refresh your Claude Code login token in place
+                      and restore live usage. Your token &amp; cost totals below
+                      are read locally and aren’t affected.
+                    </p>
+                    <button
+                      className="reconnect-btn"
+                      disabled={reconnecting}
+                      onClick={() => reconnectClaude()}
+                    >
+                      {reconnecting ? "Reconnecting…" : "Reconnect"}
+                    </button>
+                    {reconnectError && (
+                      <p className="connect-err">
+                        Couldn’t reconnect: {reconnectError}. Open Claude Code
+                        and run <code>/login</code>, then try again.
+                      </p>
+                    )}
+                  </div>
+                ) : limits.pending ? (
                   <div className="connect-card">
                     <p className="connect-title">Reading live Claude usage…</p>
                     <p className="connect-sub">{limits.estimateNote}</p>
                   </div>
                 ) : (
                   <>
+                    {limits.signedOut && (
+                      <div className="notice-bar">
+                        <InfoIcon />
+                        <span>
+                          <b>Not signed in to Claude</b> — showing a local
+                          estimate. Run <code>/login</code> in Claude Code for
+                          live session &amp; weekly usage.
+                        </span>
+                      </div>
+                    )}
                     <div className="kpis">
                       {limits.buckets.slice(0, 3).map((b, i) => (
                         <div className={`kpi ${["accent", "ok", ""][i]}`} key={b.name}>

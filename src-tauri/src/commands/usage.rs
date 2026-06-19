@@ -60,6 +60,10 @@ pub async fn collect(app: &AppHandle) -> Result<UsageSnapshot, String> {
         if live_due {
             live_attempted = true;
             let live = claude::fetch(now).await;
+            // A present-but-rejected (401) token means the Claude Code login
+            // expired — surface a re-auth prompt no matter which display path
+            // we take below (blank, last-good cache, or pending).
+            snapshot.limits.needs_reauth = live.expired;
             if live.ok && !live.buckets.is_empty() {
                 snapshot.limits.buckets = live.buckets.clone();
                 snapshot.limits.plan_label = "live".to_string();
@@ -89,6 +93,7 @@ pub async fn collect(app: &AppHandle) -> Result<UsageSnapshot, String> {
             } else {
                 // No Claude login at all → live can never work; the local
                 // estimate is the legitimate, clearly-labeled fallback.
+                snapshot.limits.signed_out = true;
                 if let Some(err) = live.error {
                     snapshot.limits.estimate_note = format!(
                         "Showing local estimate — couldn’t read live Claude usage ({err}). Limits are against an editable plan ceiling."
@@ -107,8 +112,10 @@ pub async fn collect(app: &AppHandle) -> Result<UsageSnapshot, String> {
             // is still coming. Show pending rather than the estimate.
             snapshot.limits.pending = true;
             snapshot.limits.estimate_note = "Reading live Claude usage…".to_string();
+        } else {
+            // Throttled, no cached reading, and no login → local estimate.
+            snapshot.limits.signed_out = true;
         }
-        // else: no login → keep the local estimate.
     }
 
     // Live vendor fetches (network, async).
@@ -165,6 +172,25 @@ async fn fetch_anthropic(key: Option<EncryptedSecret>) -> VendorStatus {
 
 #[tauri::command]
 pub async fn get_usage(app: AppHandle) -> Result<UsageSnapshot, String> {
+    let snapshot = collect(&app).await?;
+    let _ = app.emit("usage-updated", &snapshot);
+    Ok(snapshot)
+}
+
+/// Refresh an expired Claude Code login token in place, then re-collect so the
+/// live meters come back immediately. Returns the refreshed snapshot.
+#[tauri::command]
+pub async fn reconnect_claude(app: AppHandle) -> Result<UsageSnapshot, String> {
+    claude::refresh(chrono::Utc::now()).await?;
+    // Clear the live-fetch throttle and stale cache so the very next collect
+    // re-hits the usage endpoint with the freshly-minted token instead of
+    // serving the cached "pending" state.
+    {
+        let state = app.state::<Mutex<AppState>>();
+        let mut guard = state.lock().map_err(|e| e.to_string())?;
+        guard.live_claude_attempted_at = None;
+        guard.live_claude_buckets = None;
+    }
     let snapshot = collect(&app).await?;
     let _ = app.emit("usage-updated", &snapshot);
     Ok(snapshot)

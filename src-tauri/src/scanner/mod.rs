@@ -66,6 +66,16 @@ pub struct Limits {
     /// state instead of the wrong-scale local estimate.
     #[serde(default)]
     pub pending: bool,
+    /// True when a Claude Code login exists but was rejected (HTTP 401) — the
+    /// token expired. The UI shows an actionable "sign in again" state instead
+    /// of an indistinguishable "loading…" spinner.
+    #[serde(default)]
+    pub needs_reauth: bool,
+    /// True when live mode is on but no Claude Code login is present at all, so
+    /// the bars are a local estimate. Lets the UI say "not signed in" rather
+    /// than silently relabeling to "est." (indistinguishable from logged in).
+    #[serde(default)]
+    pub signed_out: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -467,6 +477,8 @@ fn build_snapshot(
         buckets,
         live: false,
         pending: false,
+        needs_reauth: false,
+        signed_out: false,
     };
 
     // ---- per-day week chart (7 days incl. today) ----

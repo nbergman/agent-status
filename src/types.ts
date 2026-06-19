@@ -31,6 +31,12 @@ export interface Limits {
   /** Live data is the chosen source but not available yet — show a loading
    * state instead of the (wrong-scale) local estimate. */
   pending?: boolean;
+  /** A Claude Code login exists but expired (HTTP 401) — show an actionable
+   * "sign in again" state rather than an indistinguishable loading spinner. */
+  needsReauth?: boolean;
+  /** Live mode is on but no Claude Code login is present — bars are a local
+   * estimate. Show a "not signed in" hint instead of silently relabeling. */
+  signedOut?: boolean;
 }
 
 export interface Kpi {
