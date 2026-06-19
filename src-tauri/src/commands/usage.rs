@@ -336,6 +336,31 @@ pub fn clear_api_key(
     Ok((&updated).into())
 }
 
+/// Resize a tray window and, on Windows, re-pin it to the bottom-right corner of
+/// its monitor's work area (flush above the taskbar). Both the resize and the
+/// reposition happen here, in one synchronous command, on purpose: issuing
+/// `setSize` then `setPosition` as two separate calls from the webview races
+/// WebView2's IPC and the second op is frequently dropped — leaving the window
+/// either mis-sized (stuck at the old height) or mis-placed (bottom off-screen).
+/// Native `set_size`/`set_position` are sequential Win32 calls that both apply,
+/// and with no paint between them the corner re-pin is invisible. macOS keeps the
+/// plain top-anchored `setSize` in the frontend, so it never calls this.
+#[tauri::command]
+pub fn fit_tray_window(app: AppHandle, label: String, width: f64, height: f64) {
+    let Some(win) = app.get_webview_window(&label) else {
+        return;
+    };
+    let _ = win.set_size(tauri::LogicalSize::new(width, height));
+    #[cfg(target_os = "windows")]
+    if let Some(mon) = win.current_monitor().ok().flatten() {
+        let wa = mon.work_area();
+        let scale = mon.scale_factor();
+        let x = wa.position.x + wa.size.width as i32 - (width * scale).round() as i32;
+        let y = wa.position.y + wa.size.height as i32 - (height * scale).round() as i32;
+        let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
+    }
+}
+
 /// Open an http(s) URL in the user's default browser (macOS `open`).
 /// Scheme-restricted so it can't be misused as a generic process launcher.
 #[tauri::command]

@@ -6,8 +6,7 @@ use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Emitter, LogicalPosition, Manager, Rect, WebviewUrl, WebviewWindow,
-    WebviewWindowBuilder,
+    AppHandle, Emitter, Manager, Rect, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 use tauri_plugin_positioner::{Position, WindowExt};
 
@@ -121,16 +120,10 @@ fn toggle_window(app: &AppHandle, tray_rect: Option<Rect>) {
     refresh_on_open(app);
 }
 
-/// Hang the dropdown directly off the tray icon: top edge just below the menu
-/// bar, right edge aligned with the icon's right edge so it extends down-left.
-/// Anchoring the right edge (rather than centering) keeps the window on-screen,
-/// since menu-bar icons sit near the top-right corner.
-///
-/// All math is done in **logical points** — the only coordinate space that's
-/// uniform across displays of different scale (e.g. a 2x Retina laptop next to
-/// a 1x external monitor). The result is sent as a `LogicalPosition`, which the
-/// OS places directly without reinterpreting it against the window's current
-/// display scale; that's what makes this correct on a mixed-DPI setup.
+/// Place the dropdown/popover relative to the tray icon. The anchor differs by
+/// platform because the tray lives in opposite corners (macOS menu bar at the
+/// top, Windows taskbar at the bottom), so the body is split into two
+/// `#[cfg]`-gated `place_window` helpers below.
 ///
 /// `tray_rect` is the icon's bounding rect in physical pixels (top-left global
 /// origin). When it's `None` (the "Show / Hide" menu item, which carries no
@@ -141,27 +134,76 @@ fn position_dropdown(window: &WebviewWindow, tray_rect: Option<Rect>) {
         return;
     };
 
-    // Icon geometry in physical pixels, at the icon display's scale.
+    // Icon geometry in physical pixels (top-left global origin).
     let pos = rect.position.to_physical::<f64>(1.0);
     let size = rect.size.to_physical::<f64>(1.0);
+    place_window(window, pos.x, pos.y, size.width, size.height);
+}
 
+/// macOS: hang the window directly off the menu-bar icon — top edge just below
+/// the menu bar, right edge aligned with the icon's right edge so it extends
+/// down-left. Anchoring the right edge (rather than centering) keeps the window
+/// on-screen, since menu-bar icons sit near the top-right corner.
+///
+/// All math is done in **logical points** — the only coordinate space that's
+/// uniform across displays of different scale (e.g. a 2x Retina laptop next to
+/// a 1x external monitor). The result is sent as a `LogicalPosition`, which the
+/// OS places directly without reinterpreting it against the window's current
+/// display scale; that's what makes this correct on a mixed-DPI setup.
+#[cfg(not(target_os = "windows"))]
+fn place_window(window: &WebviewWindow, icon_x: f64, icon_y: f64, icon_w: f64, icon_h: f64) {
     // Converting the physical icon position to logical points requires the
     // scale of the display the icon is on — which we recover below.
-    let Some(scale) = icon_display_scale(window, pos.x, pos.y) else {
+    let Some(scale) = icon_display_scale(window, icon_x, icon_y) else {
         let _ = window.move_window_constrained(Position::TrayCenter);
         return;
     };
 
-    let icon_right = (pos.x + size.width) / scale;
+    let icon_right = (icon_x + icon_w) / scale;
     // The icon spans the menu bar height, so its bottom edge is exactly where a
     // menu-bar dropdown should hang from — on this display, not the primary's.
-    let menubar_bottom = (pos.y + size.height) / scale;
+    let menubar_bottom = (icon_y + icon_h) / scale;
 
     // Window width in logical points (constant regardless of current display).
     let win_scale = window.scale_factor().unwrap_or(1.0).max(0.01);
     let win_w = window.outer_size().map(|s| s.width as f64).unwrap_or(0.0) / win_scale;
 
-    let _ = window.set_position(LogicalPosition::new(icon_right - win_w, menubar_bottom));
+    let _ = window.set_position(tauri::LogicalPosition::new(icon_right - win_w, menubar_bottom));
+}
+
+/// Windows: pin the window to the **bottom-right corner of the monitor's work
+/// area** (flush above the taskbar, against the right edge) — the conventional
+/// placement for a Windows tray app. We deliberately do *not* anchor to the icon
+/// rect: a Windows tray icon usually lives in the hidden-icons overflow flyout,
+/// so its rect points into the flyout (or is stale), not the taskbar. The work
+/// area is the screen minus the taskbar, so its corner is a stable, correct
+/// anchor wherever the icon actually sits. `work_area` and `outer_size` are both
+/// physical pixels, so the math needs no scale conversion.
+#[cfg(target_os = "windows")]
+fn place_window(window: &WebviewWindow, icon_x: f64, icon_y: f64, _icon_w: f64, _icon_h: f64) {
+    let Some(monitor) = icon_monitor(window, icon_x, icon_y) else {
+        let _ = window.move_window_constrained(Position::TrayCenter);
+        return;
+    };
+    let wa = monitor.work_area();
+    let outer = window.outer_size().unwrap_or_default();
+    let x = wa.position.x + wa.size.width as i32 - outer.width as i32;
+    let y = wa.position.y + wa.size.height as i32 - outer.height as i32;
+    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+}
+
+/// The monitor whose physical bounds contain the tray icon. On Windows monitor
+/// bounds and the icon position are all in the same global physical coordinate
+/// space, so a direct containment test is unambiguous (no per-scale
+/// reinterpretation like the macOS path needs).
+#[cfg(target_os = "windows")]
+fn icon_monitor(window: &WebviewWindow, phys_x: f64, phys_y: f64) -> Option<tauri::Monitor> {
+    let (x, y) = (phys_x as i32, phys_y as i32);
+    window.available_monitors().ok()?.into_iter().find(|m| {
+        let p = m.position();
+        let s = m.size();
+        x >= p.x && x < p.x + s.width as i32 && y >= p.y && y < p.y + s.height as i32
+    })
 }
 
 /// Scale factor of the display the tray icon sits on.
@@ -175,6 +217,7 @@ fn position_dropdown(window: &WebviewWindow, tray_rect: Option<Rect>) {
 ///
 /// `monitor_from_point` can't be used here: it hit-tests in logical points
 /// while our coordinate is physical, so on a scaled display it picks wrong.
+#[cfg(not(target_os = "windows"))]
 fn icon_display_scale(window: &WebviewWindow, phys_x: f64, phys_y: f64) -> Option<f64> {
     let mut best: Option<(f64, f64)> = None; // (scale, distance from right edge)
     for m in window.available_monitors().ok()? {

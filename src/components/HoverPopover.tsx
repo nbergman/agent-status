@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { tileLabel } from "../format";
+import { fitWindowHeight } from "../platform";
 import { isTauriReady } from "../tauriReady";
 import type { TooltipProvider, UsageSnapshot, VendorStatus } from "../types";
 
@@ -49,14 +50,13 @@ export function HoverPopover() {
   }, []);
 
   // Fit the window to the card's natural height (it varies by provider and
-  // state), so there's never dead space below the content. The window is
-  // top-anchored under the icon, so it grows downward.
+  // state), so there's never dead space below the content. On macOS the window
+  // is top-anchored under the icon and grows downward; on Windows fitWindowHeight
+  // keeps the bottom edge pinned above the taskbar so it grows upward.
   useLayoutEffect(() => {
     if (!isTauriReady() || !rootRef.current) return;
     const height = Math.max(60, Math.ceil(rootRef.current.offsetHeight));
-    getCurrentWindow()
-      .setSize(new LogicalSize(WIDTH, height))
-      .catch(() => {});
+    fitWindowHeight(getCurrentWindow(), WIDTH, height).catch(() => {});
   }, [snapshot, provider]);
 
   return (

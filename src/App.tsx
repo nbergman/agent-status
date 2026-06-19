@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { useLayoutEffect, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { About } from "./components/About";
 import { Meter } from "./components/Meter";
@@ -8,6 +8,7 @@ import { UpdateBanner } from "./components/UpdateBanner";
 import { VendorCard } from "./components/VendorCard";
 import { WeekChart } from "./components/WeekChart";
 import { useUsage } from "./hooks/useUsage";
+import { fitWindowHeight, isWindows } from "./platform";
 import { isTauriReady } from "./tauriReady";
 import { tileLabel } from "./format";
 import type { Glm, PlanKey, VendorStatus } from "./types";
@@ -53,28 +54,36 @@ export default function App() {
   const minimal = (settings?.minimalView ?? false) && tab === "overview";
 
   // Fit the window to its content in minimal view (no scrollbar, no dead
-  // space); restore the full height otherwise. The macOS window is anchored
-  // top-under-tray, so resizing grows/shrinks downward.
-  useEffect(() => {
+  // space); restore the full height otherwise. macOS is anchored top-under-tray
+  // so resizing grows/shrinks downward; on Windows fitWindowHeight keeps the
+  // bottom edge pinned above the taskbar instead. useLayoutEffect (not
+  // useEffect) so the resize is dispatched in the same frame the view changes —
+  // switching feels instant instead of lagging a paint behind.
+  useLayoutEffect(() => {
     if (!isTauriReady()) return;
     const win = getCurrentWindow();
     const root = document.querySelector<HTMLElement>(".widget");
     const body = document.querySelector<HTMLElement>(".body");
     const panel = body?.firstElementChild as HTMLElement | null;
     if (!minimal || !root || !body || !panel) {
-      win.setSize(new LogicalSize(WINDOW_WIDTH, FULL_HEIGHT)).catch(() => {});
+      fitWindowHeight(win, WINDOW_WIDTH, FULL_HEIGHT).catch(() => {});
       return;
     }
     // Fit to the panel's own height. NB: not body.scrollHeight — that clamps to
     // the viewport when content underflows, so it can never shrink the window
     // (and the buffer would make it creep upward each refresh). The panel's
-    // height is set by its content at the fixed window width, so it's stable.
+    // height is set by its content at the fixed window width, so it's stable —
+    // which is also why the fixed BREATHING_ROOM below can't accumulate.
     const cs = getComputedStyle(body);
     const bodyPad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
     const nonBodyChrome = root.offsetHeight - body.offsetHeight;
-    const natural = nonBodyChrome + panel.offsetHeight + bodyPad;
+    // Windows clips a sub-pixel row in the borderless content (and minimal hides
+    // overflow, so a shortfall isn't scrollable); a little slack avoids it. macOS
+    // fit the content exactly and looked right, so leave it unchanged there.
+    const BREATHING_ROOM = isWindows ? 10 : 0;
+    const natural = nonBodyChrome + panel.offsetHeight + bodyPad + BREATHING_ROOM;
     const height = Math.min(FULL_HEIGHT, Math.max(200, Math.ceil(natural)));
-    win.setSize(new LogicalSize(WINDOW_WIDTH, height)).catch(() => {});
+    fitWindowHeight(win, WINDOW_WIDTH, height).catch(() => {});
   }, [minimal, provider, tab, snapshot]);
 
   if (!snapshot) {

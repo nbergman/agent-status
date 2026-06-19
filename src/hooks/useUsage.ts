@@ -92,6 +92,10 @@ export function useUsage() {
 
   const setMinimalView = useCallback(
     async (enabled: boolean) => {
+      // Flip locally first so the view resizes the instant the toggle is hit;
+      // the backend write is just persistence and shouldn't gate the UI. The
+      // round-trip result still overwrites it below to stay authoritative.
+      setSettings((prev) => (prev ? { ...prev, minimalView: enabled } : prev));
       const updated = await minimalViewCmd.execute({ enabled });
       if (updated) setSettings(updated);
     },
