@@ -23,9 +23,7 @@ git merge upstream/main   # or rebase, per your preference
 |---------|-------|
 | Bundle ID | `com.nbergman.agentstatus` |
 | Updater | `https://github.com/nbergman/agent-status/releases/latest/download/latest.json` |
-| Signing | Configure your own `TAURI_SIGNING_*` keys before shipping releases (see `docs/RELEASE.md`) |
-
-The updater pubkey in `tauri.conf.json` is inherited from upstream until you generate a new keypair for this fork's releases.
+| Signing | `~/.tauri/agent-status-updater.key` (private, local only) + pubkey in `tauri.conf.json` |
 
 ## Roadmap
 
