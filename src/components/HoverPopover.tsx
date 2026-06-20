@@ -40,7 +40,7 @@ export function HoverPopover() {
       );
       unlisteners.push(
         await listen<TooltipProvider>("hover-provider", (e) => {
-          if (e.payload === "claude" || e.payload === "glm") setProvider(e.payload);
+          if (["claude", "glm", "codex", "grok"].includes(e.payload)) setProvider(e.payload);
         }),
       );
     })();
@@ -76,10 +76,48 @@ function HoverContent({
   if (!snapshot) {
     return <div className="hp-status">Reading usage…</div>;
   }
-  return provider === "glm" ? (
-    <GlmContent vendor={snapshot.vendor?.glm} />
-  ) : (
-    <ClaudeContent snapshot={snapshot} />
+  if (provider === "glm") {
+    return <GlmContent vendor={snapshot.vendor?.glm} />;
+  }
+  if (provider === "codex") {
+    return <AgentStatsContent stats={snapshot.codex} source="live · Codex" />;
+  }
+  if (provider === "grok") {
+    return <AgentStatsContent stats={snapshot.grok} source="live · Grok Build" />;
+  }
+  return <ClaudeContent snapshot={snapshot} />;
+}
+
+function AgentStatsContent({
+  stats,
+  source,
+}: {
+  stats: UsageSnapshot["codex"];
+  source: string;
+}) {
+  return (
+    <>
+      <Head src={source} />
+      {stats.buckets.length === 0 ? (
+        <div className="hp-status">{stats.note || "No usage data yet."}</div>
+      ) : (
+        <div className="hp-rows">
+          {stats.buckets.slice(0, 3).map((b) => (
+            <div className="hp-row" key={b.name}>
+              <div className="hp-line">
+                <span className={`hp-dot ${b.status}`} />
+                <span className="hp-label">{tileLabel(b.name)}</span>
+                <span className="hp-reset">resets {b.reset}</span>
+                <span className="hp-pct">{b.usedPct}%</span>
+              </div>
+              <div className="track">
+                <div className={`fill ${b.status}`} style={{ width: `${b.usedPct}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 

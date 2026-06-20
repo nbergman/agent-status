@@ -2,7 +2,9 @@ import { useLayoutEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { About } from "./components/About";
+import { AgentOverview } from "./components/AgentOverview";
 import { Meter } from "./components/Meter";
+import { ProviderDetail } from "./components/ProviderDetail";
 import { Settings } from "./components/Settings";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { VendorCard } from "./components/VendorCard";
@@ -11,7 +13,7 @@ import { useUsage } from "./hooks/useUsage";
 import { fitWindowHeight, isWindows } from "./platform";
 import { isTauriReady } from "./tauriReady";
 import { tileLabel } from "./format";
-import type { Glm, PlanKey, VendorStatus } from "./types";
+import type { Glm, OverviewProvider, PlanKey, VendorStatus } from "./types";
 
 type Tab = "overview" | "sessions" | "providers" | "settings" | "about";
 
@@ -48,7 +50,7 @@ export default function App() {
     keyError,
   } = useUsage();
   const [tab, setTab] = useState<Tab>("overview");
-  const [provider, setProvider] = useState<"claude" | "glm">("claude");
+  const [provider, setProvider] = useState<OverviewProvider>("claude");
   const plan: PlanKey = settings?.plan ?? "max5x";
   // Minimal view only trims the Overview; other tabs always show full content.
   const minimal = (settings?.minimalView ?? false) && tab === "overview";
@@ -100,18 +102,29 @@ export default function App() {
     );
   }
 
-  const { meta, limits, week, models, sessions, providers, glm, kpi } = snapshot;
+  const { meta, limits, week, models, sessions, providers, glm, codex, grok, kpi } = snapshot;
 
-  // Only show a provider tab when that provider is actually present locally
-  // (installed CLI / login, configured key, or local activity). Fall back to
-  // showing both if the backend didn't report detection.
+  const PROVIDER_LABELS: Record<OverviewProvider, string> = {
+    claude: "Claude",
+    glm: "GLM",
+    codex: "Codex",
+    grok: "Grok",
+  };
+
+  // Only show a provider tab when that provider is actually present locally.
   const showClaude = snapshot.detection?.claude ?? true;
   const showGlm = snapshot.detection?.glm ?? true;
-  const available: ("claude" | "glm")[] = [
+  const showCodex = snapshot.detection?.codex ?? false;
+  const showGrok = snapshot.detection?.grok ?? false;
+  const available: OverviewProvider[] = [
     ...(showClaude ? (["claude"] as const) : []),
     ...(showGlm ? (["glm"] as const) : []),
+    ...(showCodex ? (["codex"] as const) : []),
+    ...(showGrok ? (["grok"] as const) : []),
   ];
-  const providerTabs = available.length ? available : (["claude", "glm"] as const);
+  const providerTabs: OverviewProvider[] = available.length
+    ? available
+    : ["claude", "glm"];
   const eff = providerTabs.includes(provider) ? provider : providerTabs[0];
 
   return (
@@ -191,7 +204,7 @@ export default function App() {
                     onClick={() => setProvider(p)}
                   >
                     <span className={`seg-dot ${p}`} />{" "}
-                    {p === "claude" ? "Claude" : "GLM"}
+                    {PROVIDER_LABELS[p]}
                   </button>
                 ))}
               </div>
@@ -311,6 +324,26 @@ export default function App() {
                 onConnect={() => setTab("settings")}
               />
             )}
+
+            {eff === "codex" && (
+              <AgentOverview
+                title="Codex quota"
+                meta={`${codex.planLabel} · session logs`}
+                stats={codex}
+                minimal={minimal}
+                liveLabel="live · Codex"
+              />
+            )}
+
+            {eff === "grok" && (
+              <AgentOverview
+                title="Grok context"
+                meta={`${grok.planLabel} · session signals`}
+                stats={grok}
+                minimal={minimal}
+                liveLabel="live · Grok Build"
+              />
+            )}
           </section>
         )}
 
@@ -406,6 +439,22 @@ export default function App() {
               <InfoIcon />
               <p>{glm.note}</p>
             </div>
+
+            {showCodex && codex.sessions > 0 && (
+              <ProviderDetail
+                title="Codex detail"
+                meta="latest rollout · rate limits"
+                stats={codex}
+              />
+            )}
+
+            {showGrok && grok.sessions > 0 && (
+              <ProviderDetail
+                title="Grok Build detail"
+                meta="session signals · context window"
+                stats={grok}
+              />
+            )}
           </section>
         )}
 

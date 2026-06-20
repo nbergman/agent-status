@@ -77,6 +77,8 @@ body {
 .seg-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .seg-dot.claude { background: var(--accent); }
 .seg-dot.glm { background: var(--violet); }
+.seg-dot.codex { background: oklch(78% 0.14 145); }
+.seg-dot.grok { background: oklch(72% 0.12 30); }
 
 /* GLM connect empty-state */
 .connect-card { background: var(--surface); border: 1px dashed var(--border-2); border-radius: 10px; padding: 16px 14px; text-align: center; }

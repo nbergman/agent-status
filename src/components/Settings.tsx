@@ -72,6 +72,8 @@ export function Settings({
         >
           <option value="claude">Claude</option>
           <option value="glm">GLM / z.ai</option>
+          <option value="codex">Codex</option>
+          <option value="grok">Grok Build</option>
         </select>
       </div>
 

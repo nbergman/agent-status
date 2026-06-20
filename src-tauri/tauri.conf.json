@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Agent Usage Monitor",
   "version": "0.2.1",
-  "identifier": "com.dennisrongo.agentstatus",
+  "identifier": "com.nbergman.agentstatus",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -36,7 +36,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk3QUQ2Njg1NDVCOEREMUQKUldRZDNiaEZoV2F0bDQzNlRla0xCSU84d3FERmdMWkpabUxaaFVGa3Z1bGVrYzVMczFoclBBYlcK",
       "endpoints": [
-        "https://github.com/dennisrongo/agent-status/releases/latest/download/latest.json"
+        "https://github.com/nbergman/agent-status/releases/latest/download/latest.json"
       ]
     }
   },
@@ -45,9 +45,9 @@
     "targets": "all",
     "createUpdaterArtifacts": true,
     "category": "DeveloperTool",
-    "copyright": "© 2026 Lean Code Automation LLC",
-    "shortDescription": "Menubar widget for Claude Code & GLM CLI usage.",
-    "longDescription": "A lightweight macOS menubar widget that tracks Claude Code and GLM CLI usage in real time — session/weekly/Opus limits, token spend, cost estimates, and per-session history, read from local logs.",
+    "copyright": "© 2026 Nick Bergman",
+    "shortDescription": "Menubar widget for AI coding agent usage.",
+    "longDescription": "A lightweight macOS menubar widget that tracks Claude Code, Codex, Grok Build, and GLM CLI usage — limits, token spend, and session history from local logs and live APIs.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

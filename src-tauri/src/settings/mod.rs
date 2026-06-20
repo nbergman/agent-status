@@ -37,7 +37,7 @@ pub struct Settings {
     /// Compact "main stats only" Overview that fits the window without
     /// scrolling. Defaults off — the full view is the standard layout.
     pub minimal_view: bool,
-    /// Which provider the tray hover popover previews: "claude" or "glm".
+    /// Which provider the tray hover popover previews: "claude", "glm", "codex", or "grok".
     /// Defaults to Claude (the local-by-default provider).
     pub tooltip_provider: String,
 }

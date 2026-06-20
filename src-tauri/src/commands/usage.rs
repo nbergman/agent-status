@@ -122,12 +122,17 @@ pub async fn collect(app: &AppHandle) -> Result<UsageSnapshot, String> {
     let glm_status = fetch_glm(zai_key, &glm_endpoint).await;
     let anthropic_status = fetch_anthropic(anthropic_key).await;
 
-    // Decide which provider tabs to show. Claude can be detected locally (login
-    // token / session logs / CLI on PATH); GLM has no readable local credential,
-    // so it's only present once the API key is set in settings.
+    // Decide which provider tabs to show.
+    let home = dirs::home_dir();
     snapshot.detection = Some(Detection {
         claude: claude::detected() || snapshot.meta.files_scanned > 0,
         glm: glm_status.configured,
+        codex: home
+            .as_ref()
+            .is_some_and(|h| crate::scanner::codex::detected(h)),
+        grok: home
+            .as_ref()
+            .is_some_and(|h| crate::scanner::grok::detected(h)),
     });
 
     snapshot.vendor = Some(VendorReport {
@@ -258,7 +263,7 @@ pub fn set_minimal_view(
     Ok((&updated).into())
 }
 
-/// Choose which provider the tray hover popover previews ("claude" or "glm").
+/// Choose which provider the tray hover popover previews.
 #[tauri::command]
 pub fn set_tooltip_provider(
     app: AppHandle,
@@ -266,7 +271,7 @@ pub fn set_tooltip_provider(
     provider: String,
 ) -> Result<SettingsView, String> {
     match provider.as_str() {
-        "claude" | "glm" => {}
+        "claude" | "glm" | "codex" | "grok" => {}
         other => return Err(format!("unknown provider: {other}")),
     }
     let updated = update_settings(&state, |s| s.tooltip_provider = provider)?;

@@ -69,9 +69,13 @@ pub struct VendorReport {
 /// - `claude`: a Claude Code login token exists, local session logs were found,
 ///   or the `claude` CLI is on PATH.
 /// - `glm`: a z.ai API key is configured, or local MCP server logs exist.
+/// - `codex`: auth token, CLI on PATH, or rollout logs under `~/.codex`.
+/// - `grok`: auth token, CLI on PATH, or session signals under `~/.grok`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Detection {
     pub claude: bool,
     pub glm: bool,
+    pub codex: bool,
+    pub grok: bool,
 }

@@ -5,7 +5,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { useUpdater } from "../hooks/useUpdater";
 import { isTauriReady } from "../tauriReady";
 
-const WEBSITE = "https://dennisrongo.com";
+const REPO = "https://github.com/nbergman/agent-status";
+const UPSTREAM = "https://github.com/dennisrongo/agent-status";
 
 export function About() {
   const [version, setVersion] = useState<string | null>(null);
@@ -38,7 +39,7 @@ export function About() {
     e.preventDefault();
     if (!isTauriReady()) return;
     try {
-      await invoke("open_url", { url: WEBSITE });
+      await invoke("open_url", { url: REPO });
     } catch (err) {
       console.error("Failed to open website:", err);
     }
@@ -61,7 +62,7 @@ export function About() {
         </span>
         <div>
           <div className="about-name">Agent Usage Monitor</div>
-          <div className="about-tagline">Menubar usage for Claude Code &amp; GLM CLI</div>
+          <div className="about-tagline">Menubar usage for Claude, Codex, Grok &amp; GLM</div>
         </div>
       </div>
 
@@ -88,11 +89,24 @@ export function About() {
 
       <div className="about-row">
         <div>
-          <span className="about-row-label">Created by</span>
+          <span className="about-row-label">Maintained by</span>
+          <span className="about-row-sub">Nick Bergman</span>
+        </div>
+        <a className="about-link" href={REPO} onClick={openWebsite}>
+          GitHub
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4.5 2.5h5v5M9.5 2.5L2.5 9.5" />
+          </svg>
+        </a>
+      </div>
+
+      <div className="about-row">
+        <div>
+          <span className="about-row-label">Originally by</span>
           <span className="about-row-sub">Dennis Rongo</span>
         </div>
-        <a className="about-link" href={WEBSITE} onClick={openWebsite}>
-          dennisrongo.com
+        <a className="about-link" href={UPSTREAM} onClick={(e) => { e.preventDefault(); if (isTauriReady()) invoke("open_url", { url: UPSTREAM }).catch(console.error); }}>
+          upstream
           <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
             <path d="M4.5 2.5h5v5M9.5 2.5L2.5 9.5" />
           </svg>
@@ -100,7 +114,7 @@ export function About() {
       </div>
 
       <div className="version-foot">
-        Agent Usage Monitor{version ? ` v${version}` : ""} · © 2026 Lean Code Automation LLC
+        Agent Usage Monitor{version ? ` v${version}` : ""} · © 2026 Nick Bergman
       </div>
     </section>
   );

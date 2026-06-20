@@ -88,6 +88,17 @@ export interface Glm {
   note: string;
 }
 
+export interface AgentStats {
+  sessions: number;
+  activeDays: number;
+  last: string;
+  note: string;
+  planLabel: string;
+  buckets: Bucket[];
+  totalTokens: string;
+  models: ModelRow[];
+}
+
 export interface VendorKeyVal {
   label: string;
   value: string;
@@ -110,6 +121,8 @@ export interface VendorReport {
 export interface Detection {
   claude: boolean;
   glm: boolean;
+  codex: boolean;
+  grok: boolean;
 }
 
 export interface UsageSnapshot {
@@ -121,13 +134,16 @@ export interface UsageSnapshot {
   sessions: SessionRow[];
   providers: Provider[];
   glm: Glm;
+  codex: AgentStats;
+  grok: AgentStats;
   vendor?: VendorReport;
   detection?: Detection;
 }
 
 export type PlanKey = "pro" | "max5x" | "max20x" | "custom";
 
-export type TooltipProvider = "claude" | "glm";
+export type OverviewProvider = "claude" | "glm" | "codex" | "grok";
+export type TooltipProvider = OverviewProvider;
 
 export interface SettingsView {
   plan: PlanKey;

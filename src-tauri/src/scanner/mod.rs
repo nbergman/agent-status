@@ -1,9 +1,14 @@
 //! Local CLI usage scanner. Reads Claude Code session logs
-//! (`~/.claude/projects/**/*.jsonl`) and GLM/z.ai logs (`~/.zai/*.log`),
-//! aggregates token usage into the snapshot the frontend renders.
+//! (`~/.claude/projects/**/*.jsonl`), GLM/z.ai logs (`~/.zai/*.log`),
+//! Codex rollouts (`~/.codex/sessions/**`), and Grok Build signals
+//! (`~/.grok/sessions/**`), aggregating usage into the snapshot the
+//! frontend renders.
 //!
 //! All file I/O here is synchronous; callers must run it via
 //! `tokio::task::spawn_blocking` from async commands.
+
+pub mod codex;
+pub mod grok;
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -31,6 +36,8 @@ pub struct UsageSnapshot {
     pub sessions: Vec<SessionRow>,
     pub providers: Vec<Provider>,
     pub glm: Glm,
+    pub codex: AgentStats,
+    pub grok: AgentStats,
     /// Live vendor-side usage, filled in by the command layer after the scan.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vendor: Option<crate::vendors::VendorReport>,
@@ -155,6 +162,20 @@ pub struct Glm {
     pub active_days: usize,
     pub last: String,
     pub note: String,
+}
+
+/// Shared stats shape for Codex and Grok Build (and future CLI agents).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentStats {
+    pub sessions: u32,
+    pub active_days: usize,
+    pub last: String,
+    pub note: String,
+    pub plan_label: String,
+    pub buckets: Vec<Bucket>,
+    pub total_tokens: String,
+    pub models: Vec<ModelRow>,
 }
 
 // ---------- Internal record ----------
@@ -283,9 +304,16 @@ fn humanize_when(ts: DateTime<Utc>, now: DateTime<Utc>) -> String {
 }
 
 fn clean_project(raw: &str) -> String {
-    let s = raw
+    let mut s = raw.to_string();
+    if let Some(home) = dirs::home_dir() {
+        let prefix = format!(
+            "-{}-",
+            home.to_string_lossy().trim_start_matches('/').replace('/', "-")
+        );
+        s = s.replace(&prefix, "");
+    }
+    let s = s
         .replace("-Volumes-CrucialX10-projects-", "")
-        .replace("-Users-dennisrongo-", "")
         .replace("-Volumes-CrucialX10-", "");
     let s = s.trim_matches('-');
     if s.is_empty() {
@@ -313,7 +341,33 @@ pub fn scan_default(plan: &str) -> Result<UsageSnapshot, ScanError> {
     let home = dirs::home_dir().ok_or(ScanError::NoHome)?;
     let claude_root = home.join(".claude").join("projects");
     let zai_root = home.join(".zai");
-    Ok(scan(&claude_root, &zai_root, plan, Utc::now()))
+    let now = Utc::now();
+    let mut snap = scan(&claude_root, &zai_root, plan, now);
+    snap.codex = codex::scan(&home, now);
+    snap.grok = grok::scan(&home, now);
+    snap.providers.push(Provider {
+        name: "Codex".to_string(),
+        status: if snap.codex.sessions > 0 {
+            "connected".to_string()
+        } else {
+            "idle".to_string()
+        },
+        tokens: snap.codex.total_tokens.clone(),
+        cost: "—".to_string(),
+        sessions: snap.codex.sessions as usize,
+    });
+    snap.providers.push(Provider {
+        name: "Grok Build".to_string(),
+        status: if snap.grok.sessions > 0 {
+            "connected".to_string()
+        } else {
+            "idle".to_string()
+        },
+        tokens: snap.grok.total_tokens.clone(),
+        cost: "—".to_string(),
+        sessions: snap.grok.sessions as usize,
+    });
+    Ok(snap)
 }
 
 /// Pure-ish scan over explicit roots and clock — used by tests.
@@ -637,8 +691,23 @@ fn build_snapshot(
         sessions: session_rows,
         providers,
         glm,
+        codex: empty_agent_stats(),
+        grok: empty_agent_stats(),
         vendor: None,
         detection: None,
+    }
+}
+
+fn empty_agent_stats() -> AgentStats {
+    AgentStats {
+        sessions: 0,
+        active_days: 0,
+        last: "—".to_string(),
+        note: String::new(),
+        plan_label: "—".to_string(),
+        buckets: Vec::new(),
+        total_tokens: "—".to_string(),
+        models: Vec::new(),
     }
 }
 

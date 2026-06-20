@@ -175,6 +175,6 @@ CI runs the suite on macOS / Windows / Ubuntu (`.github/workflows/unit-tests.yml
 ## 📝 Notes / TODO
 
 - **Icon** lives at `src-tauri/icons/icon.svg` → `icon.png`; re-run `npx @tauri-apps/cli icon src-tauri/icons/icon.png` after editing to regenerate every size.
-- **Bundle identifier** is `com.dennisrongo.agentstatus` — change in `src-tauri/tauri.conf.json` if distributing under a different org.
+- **Bundle identifier** is `com.nbergman.agentstatus` — fork of [dennisrongo/agent-status](https://github.com/dennisrongo/agent-status).
 - **Signing, notarization & auto-updates** for distribution — see [docs/RELEASE.md](docs/RELEASE.md).
 - Live vendor endpoints are best-effort and unverified offline — confirm against your accounts on first run.
